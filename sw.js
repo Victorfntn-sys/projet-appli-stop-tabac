@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stop-smoking-cache-v2';
+const CACHE_NAME = 'stop-smoking-cache-v3';
 const APP_ASSETS = [
   './',
   './index.html',
