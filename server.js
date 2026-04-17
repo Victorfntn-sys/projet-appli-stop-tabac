@@ -149,41 +149,6 @@ async function sendScheduledNotifications() {
   await writeSubscriptions(nextSubscriptions);
 }
 
-async function sendForcedTestNotification() {
-  const subscriptions = await readSubscriptions();
-  const nextSubscriptions = [];
-  let sent = 0;
-  let removed = 0;
-
-  for (const record of subscriptions) {
-    const result = await sendPushNotification(record.subscription, {
-      title: 'Test notification',
-      body: 'Test manuel: notification push envoyee depuis le serveur.',
-      tag: `manual-test-${Date.now()}`,
-    });
-
-    if (result.ok) {
-      sent += 1;
-      nextSubscriptions.push(record);
-      continue;
-    }
-
-    if (result.reason === 404 || result.reason === 410) {
-      removed += 1;
-      continue;
-    }
-
-    nextSubscriptions.push(record);
-  }
-
-  await writeSubscriptions(nextSubscriptions);
-  return {
-    total: subscriptions.length,
-    sent,
-    removed,
-  };
-}
-
 app.get('/healthz', async (req, res) => {
   try {
     await ensureDataFile();
@@ -263,11 +228,6 @@ app.post('/api/push/unsubscribe', async (req, res) => {
 app.post('/api/push/run-now', async (req, res) => {
   await sendScheduledNotifications();
   res.json({ ok: true });
-});
-
-app.post('/api/push/test', async (req, res) => {
-  const result = await sendForcedTestNotification();
-  res.json({ ok: true, ...result });
 });
 
 app.get('*', (req, res) => {
