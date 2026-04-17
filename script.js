@@ -37,11 +37,13 @@ let lastPackCount = 0;
 let savingsChart = null;
 let pauseReminderIntervalId = null;
 let pushStateSyncIntervalId = null;
+let serviceWorkerUpdateIntervalId = null;
 let serviceWorkerRegistration = null;
 let waitingServiceWorker = null;
 let deferredInstallPrompt = null;
 let pushSubscriptionEndpoint = '';
 const PUSH_STATE_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+const SERVICE_WORKER_UPDATE_CHECK_INTERVAL_MS = 60 * 1000;
 let trackingState = {
   isPaused: false,
   pauseStartedAt: null,
@@ -701,9 +703,25 @@ function watchInstallingWorker(worker) {
   }
   worker.addEventListener('statechange', () => {
     if (worker.state === 'installed' && navigator.serviceWorker.controller) {
-      openUpdateModal(worker);
+      const nextWorker = serviceWorkerRegistration?.waiting || worker;
+      openUpdateModal(nextWorker);
     }
   });
+}
+
+function startServiceWorkerUpdateScheduler() {
+  if (!serviceWorkerRegistration) {
+    return;
+  }
+  if (serviceWorkerUpdateIntervalId) {
+    clearInterval(serviceWorkerUpdateIntervalId);
+  }
+  serviceWorkerUpdateIntervalId = window.setInterval(() => {
+    if (document.hidden || !navigator.onLine) {
+      return;
+    }
+    serviceWorkerRegistration.update().catch(() => undefined);
+  }, SERVICE_WORKER_UPDATE_CHECK_INTERVAL_MS);
 }
 
 async function registerServiceWorker() {
@@ -719,6 +737,7 @@ async function registerServiceWorker() {
       watchInstallingWorker(serviceWorkerRegistration.installing);
     });
     serviceWorkerRegistration.update().catch(() => undefined);
+    startServiceWorkerUpdateScheduler();
     return serviceWorkerRegistration;
   } catch (error) {
     console.warn('Service worker non enregistre', error);
@@ -799,6 +818,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (!document.hidden) {
       maybeSendPauseEncouragement();
       syncPushState();
+      serviceWorkerRegistration?.update().catch(() => undefined);
     }
   });
 
@@ -807,6 +827,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       await subscribeToPushNotifications();
       await syncPushState();
     }
+    serviceWorkerRegistration?.update().catch(() => undefined);
   });
 
   badgesList.addEventListener('click', event => {
@@ -848,7 +869,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   updateReloadButton?.addEventListener('click', () => {
     if (waitingServiceWorker) {
       waitingServiceWorker.postMessage({ type: 'SKIP_WAITING' });
+      return;
     }
+    window.location.reload();
   });
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
