@@ -79,12 +79,12 @@ const healthMilestones = [
 ];
 
 const badgeDefinitions = [
-  { id: 'debut', title: 'Premier pas', description: 'Vous avez commencé votre arrêt du tabac.', emblem: '✠', finish: 'bronze', condition: ({ days }) => days >= 1 },
-  { id: 'semaine', title: 'Résistance 1 semaine', description: 'Vous avez tenu une semaine sans tabac.', emblem: '⚔', finish: 'steel', condition: ({ days }) => days >= 7 },
-  { id: 'mois', title: '1 mois sans tabac', description: 'Vous êtes parti pour du long terme.', emblem: '♛', finish: 'gold', condition: ({ days }) => days >= 30 },
-  { id: 'economies-100', title: '100 € économisés', description: 'Première grosse économie réalisée.', emblem: '✶', finish: 'bronze', condition: ({ savedMoney }) => savedMoney >= 100 },
-  { id: 'economies-500', title: '500 € économisés', description: 'Un demi-millier économisé.', emblem: '⚜', finish: 'gold', condition: ({ savedMoney }) => savedMoney >= 500 },
-  { id: 'objectif', title: 'Objectif en vue', description: 'Votre objectif est atteint.', emblem: '♜', finish: 'royal', condition: ({ savedMoney, goalTarget }) => goalTarget > 0 && savedMoney >= goalTarget }
+  { id: 'debut', title: 'Premier pas', description: 'Vous avez commencé votre arrêt du tabac.', emblem: '●', finish: 'bronze', condition: ({ days }) => days >= 1 },
+  { id: 'semaine', title: '7 jours', description: 'Vous avez tenu une semaine sans tabac.', emblem: '▲', finish: 'steel', condition: ({ days }) => days >= 7 },
+  { id: 'mois', title: '1 mois', description: 'Vous êtes parti pour du long terme.', emblem: '✦', finish: 'gold', condition: ({ days }) => days >= 30 },
+  { id: 'economies-100', title: '100 €', description: 'Première grosse économie réalisée.', emblem: '€', finish: 'bronze', condition: ({ savedMoney }) => savedMoney >= 100 },
+  { id: 'economies-500', title: '500 €', description: 'Un demi-millier économisé.', emblem: '◆', finish: 'gold', condition: ({ savedMoney }) => savedMoney >= 500 },
+  { id: 'objectif', title: 'Objectif', description: 'Votre objectif est atteint.', emblem: '◎', finish: 'royal', condition: ({ savedMoney, goalTarget }) => goalTarget > 0 && savedMoney >= goalTarget }
 ];
 
 function getStoredQuitDate() {
@@ -447,11 +447,6 @@ function updateBadges(days, savedMoney, goalTarget) {
   badgesList.innerHTML = badges.map(badge => `
     <div class="badge-item ${badge.earned ? 'earned' : 'locked'}" data-badge-id="${badge.id}" data-badge-emblem="${badge.emblem}" data-badge-finish="${badge.finish}" tabindex="0" role="button" aria-label="${badge.title} - ${badge.earned ? 'Gagné' : 'À débloquer'}">
       <div class="badge-icon badge-finish-${badge.finish}">
-        <span class="badge-ribbon badge-ribbon-left"></span>
-        <span class="badge-ribbon badge-ribbon-right"></span>
-        <span class="badge-icon-ring"></span>
-        <span class="badge-icon-core"></span>
-        <span class="badge-icon-shine"></span>
         <span class="badge-icon-emblem">${badge.earned ? badge.emblem : '•'}</span>
       </div>
       <div class="badge-info">

@@ -435,7 +435,8 @@ button.is-loading::after {
 }
 
 .badges-list {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
@@ -443,17 +444,15 @@ button.is-loading::after {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 15px 16px;
-  border-radius: 16px;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 999px;
   background:
-    radial-gradient(circle at 16% 14%, rgba(255, 246, 215, 0.42), transparent 22%),
-    linear-gradient(180deg, #f4ead8 0%, #e5d6bf 100%);
-  border: 1px solid rgba(168, 131, 78, 0.28);
+    linear-gradient(180deg, #f8f4ec 0%, #ece4d7 100%);
+  border: 1px solid rgba(201, 184, 158, 0.8);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.52),
-    inset 0 -16px 24px rgba(120, 86, 41, 0.1),
-    0 10px 24px rgba(15, 23, 42, 0.12);
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 8px 18px rgba(15, 23, 42, 0.08);
   cursor: pointer;
   transition: transform 180ms ease, box-shadow 180ms ease;
   overflow: hidden;
@@ -463,20 +462,9 @@ button.is-loading::after {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 16px;
+  border-radius: 999px;
   background:
-    radial-gradient(circle at 12px 12px, rgba(221, 182, 116, 0.18) 0 2px, transparent 3px),
-    radial-gradient(circle at calc(100% - 12px) 12px, rgba(221, 182, 116, 0.18) 0 2px, transparent 3px),
-    radial-gradient(circle at 12px calc(100% - 12px), rgba(221, 182, 116, 0.18) 0 2px, transparent 3px),
-    radial-gradient(circle at calc(100% - 12px) calc(100% - 12px), rgba(221, 182, 116, 0.18) 0 2px, transparent 3px),
-    linear-gradient(90deg, transparent 0%, rgba(245, 222, 179, 0.09) 16%, transparent 30%),
-    repeating-linear-gradient(
-      90deg,
-      rgba(122, 86, 39, 0.03) 0,
-      rgba(122, 86, 39, 0.03) 1px,
-      transparent 1px,
-      transparent 12px
-    );
+    linear-gradient(90deg, rgba(255, 255, 255, 0.4), transparent 40%);
   pointer-events: none;
 }
 
@@ -484,50 +472,46 @@ button.is-loading::after {
   content: "";
   position: absolute;
   inset: 2px;
-  border-radius: 14px;
-  border: 1px solid rgba(216, 180, 118, 0.22);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
   pointer-events: none;
 }
 
 .badge-item:hover {
   transform: translateY(-2px);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.58),
-    inset 0 -16px 24px rgba(120, 86, 41, 0.12),
-    0 14px 30px rgba(15, 23, 42, 0.16);
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 12px 24px rgba(15, 23, 42, 0.12);
 }
 
 .badge-item.earned {
   background:
-    radial-gradient(circle at 16% 14%, rgba(255, 233, 179, 0.44), transparent 22%),
-    linear-gradient(180deg, #fbf0d8 0%, #ebd5a6 100%);
-  border-color: rgba(199, 160, 89, 0.58);
+    linear-gradient(180deg, #fff7df 0%, #f5e4ad 100%);
+  border-color: rgba(216, 180, 95, 0.72);
   box-shadow:
-    inset 0 1px 0 rgba(255, 250, 227, 0.62),
-    inset 0 -18px 26px rgba(160, 115, 34, 0.12),
-    0 12px 28px rgba(60, 37, 11, 0.16),
-    0 0 0 1px rgba(212, 175, 55, 0.18);
+    inset 0 1px 0 rgba(255, 255, 245, 0.9),
+    0 10px 22px rgba(168, 122, 28, 0.18);
 }
 
 .badge-item.locked {
   background: linear-gradient(180deg, #ece7dd 0%, #dad2c5 100%);
   border-color: rgba(124, 116, 103, 0.24);
-  opacity: 0.92;
+  opacity: 0.95;
 }
 
 .badge-icon {
-  width: 64px;
-  height: 78px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
   flex: 0 0 auto;
   color: white;
   position: relative;
-  clip-path: polygon(14% 4%, 86% 4%, 96% 18%, 92% 63%, 50% 100%, 8% 63%, 4% 18%);
+  border-radius: 50%;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.34),
-    inset 0 -12px 16px rgba(0, 0, 0, 0.24),
-    0 8px 18px rgba(15, 23, 42, 0.24);
+    inset 0 2px 4px rgba(255, 255, 255, 0.35),
+    inset 0 -6px 10px rgba(0, 0, 0, 0.18),
+    0 4px 10px rgba(15, 23, 42, 0.16);
   overflow: hidden;
   transform: translateZ(0);
 }
@@ -537,10 +521,8 @@ button.is-loading::after {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 18% 18%, rgba(255, 250, 235, 0.28) 0 4px, rgba(88, 64, 31, 0.28) 4px 6px, transparent 7px),
-    radial-gradient(circle at 82% 18%, rgba(255, 250, 235, 0.28) 0 4px, rgba(88, 64, 31, 0.28) 4px 6px, transparent 7px),
-    radial-gradient(circle at 50% 82%, rgba(255, 250, 235, 0.22) 0 4px, rgba(88, 64, 31, 0.24) 4px 6px, transparent 7px),
-    linear-gradient(90deg, transparent 46%, rgba(255, 255, 255, 0.12) 49%, rgba(70, 49, 22, 0.28) 51%, transparent 54%);
+    radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.38), transparent 26%),
+    radial-gradient(circle at 70% 75%, rgba(0, 0, 0, 0.16), transparent 36%);
   z-index: 1;
   pointer-events: none;
 }
@@ -548,140 +530,75 @@ button.is-loading::after {
 .badge-icon::after {
   content: "";
   position: absolute;
-  inset: 2px;
-  clip-path: polygon(14% 4%, 86% 4%, 96% 18%, 92% 63%, 50% 100%, 8% 63%, 4% 18%);
-  border: 1px solid rgba(53, 37, 18, 0.45);
-  opacity: 0.85;
-  z-index: 1;
-  pointer-events: none;
-}
-
-.badge-ribbon {
-  position: absolute;
-  top: 18px;
-  width: 12px;
-  height: 34px;
-  z-index: 0;
-  border-radius: 4px;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.badge-ribbon-left {
-  left: -6px;
-  transform: rotate(-10deg);
-  background: linear-gradient(180deg, #6c4d2c 0%, #3f2d19 100%);
-}
-
-.badge-ribbon-right {
-  right: -6px;
-  transform: rotate(10deg);
-  background: linear-gradient(180deg, #6c4d2c 0%, #3f2d19 100%);
-}
-
-.badge-icon-ring {
-  position: absolute;
   inset: 3px;
-  z-index: 2;
-  border: 2px solid rgba(229, 213, 181, 0.7);
-  clip-path: polygon(14% 4%, 86% 4%, 96% 18%, 92% 63%, 50% 100%, 8% 63%, 4% 18%);
-  box-shadow:
-    inset 0 0 0 1px rgba(88, 64, 31, 0.45),
-    0 0 0 1px rgba(255, 244, 221, 0.18);
-}
-
-.badge-icon-core {
-  position: absolute;
-  inset: 8px 9px 12px;
-  clip-path: polygon(14% 4%, 86% 4%, 96% 18%, 92% 63%, 50% 100%, 8% 63%, 4% 18%);
-  background:
-    radial-gradient(circle at 22% 20%, rgba(255, 255, 255, 0.18), transparent 24%),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.1) 0 49%, rgba(0, 0, 0, 0.14) 49% 51%, rgba(255, 255, 255, 0.06) 51% 100%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.02));
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 241, 212, 0.18),
-    inset 0 -8px 12px rgba(0, 0, 0, 0.16);
-}
-
-.badge-icon-shine {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(115deg, transparent 18%, rgba(255, 255, 255, 0.34) 35%, transparent 48%);
-  transform: translateX(-140%);
-  z-index: 2;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  opacity: 1;
+  z-index: 1;
   pointer-events: none;
 }
 
 .badge-icon-emblem {
   position: relative;
-  z-index: 4;
+  z-index: 2;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 1.5rem;
+  font-size: 1.1rem;
   font-weight: 700;
   line-height: 1;
-  color: rgba(244, 230, 202, 0.96);
+  color: rgba(255, 255, 255, 0.96);
   text-shadow:
     0 1px 0 rgba(255, 255, 255, 0.12),
-    0 2px 6px rgba(15, 23, 42, 0.5);
-  filter: drop-shadow(0 2px 2px rgba(15, 23, 42, 0.35));
+    0 2px 4px rgba(15, 23, 42, 0.4);
+  filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.28));
 }
 
 .badge-finish-bronze {
-  background: linear-gradient(160deg, #7e4d2c 0%, #b9773d 30%, #6e3819 62%, #41200f 100%);
+  background: linear-gradient(160deg, #c68b56 0%, #a55f2d 100%);
 }
 
 .badge-finish-steel {
-  background: linear-gradient(160deg, #748194 0%, #cfd7e2 28%, #718098 56%, #3d4959 100%);
+  background: linear-gradient(160deg, #9eaebe 0%, #66798f 100%);
 }
 
 .badge-finish-gold {
-  background: linear-gradient(160deg, #866313 0%, #e3bc52 26%, #9f7318 58%, #5a3d0b 100%);
+  background: linear-gradient(160deg, #efc95f 0%, #b68712 100%);
 }
 
 .badge-finish-royal {
-  background: linear-gradient(160deg, #223775 0%, #4d67b8 28%, #233f8b 58%, #121f47 100%);
+  background: linear-gradient(160deg, #5f83e3 0%, #294cb8 100%);
 }
 
 .badge-item.locked .badge-icon {
-  filter: grayscale(1) saturate(0.45) brightness(0.78);
+  filter: grayscale(1) saturate(0.45) brightness(0.9);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    inset 0 -10px 14px rgba(0, 0, 0, 0.28),
-    0 6px 14px rgba(15, 23, 42, 0.18);
+    inset 0 2px 4px rgba(255, 255, 255, 0.18),
+    inset 0 -6px 10px rgba(0, 0, 0, 0.14),
+    0 4px 8px rgba(15, 23, 42, 0.1);
 }
 
 .badge-item.locked .badge-icon::before {
   opacity: 0.55;
 }
 
-.badge-item.locked .badge-ribbon-left,
-.badge-item.locked .badge-ribbon-right {
-  background: linear-gradient(180deg, #9ca3af 0%, #6b7280 100%);
-}
-
 .badge-item.locked .badge-icon-emblem {
   opacity: 0.75;
 }
 
-.badge-item.earned .badge-icon-shine {
-  animation: badgeShine 5.5s ease-in-out infinite;
-}
-
 .badge-info {
   display: grid;
-  gap: 4px;
+  gap: 2px;
   position: relative;
   z-index: 1;
+  min-width: 0;
 }
 
 .badge-status {
-  font-size: 0.68rem;
+  font-size: 0.6rem;
   color: #765c35;
   display: inline-flex;
   align-items: center;
   width: fit-content;
-  padding: 4px 8px;
+  padding: 3px 7px;
   border-radius: 999px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -701,11 +618,12 @@ button.is-loading::after {
 }
 
 .badge-title {
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   color: #4e3820;
   letter-spacing: 0.02em;
   font-weight: 700;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.42);
+  white-space: nowrap;
 }
 
 .badge-description {
@@ -714,22 +632,6 @@ button.is-loading::after {
   color: #6a5640;
   line-height: 1.55;
   margin-top: 4px;
-}
-
-@keyframes badgeShine {
-  0%, 76%, 100% {
-    transform: translateX(-140%);
-    opacity: 0;
-  }
-
-  12% {
-    opacity: 1;
-  }
-
-  34% {
-    transform: translateX(140%);
-    opacity: 0.85;
-  }
 }
 
 .badge-item.expanded .badge-description {
