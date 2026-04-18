@@ -45,7 +45,17 @@ body {
 
 header {
   text-align: center;
-  margin-bottom: 28px;
+  margin-bottom: 16px;
+}
+
+.badges-bar {
+  text-align: center;
+  margin-bottom: 24px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 8px 0;
+  background: var(--bg);
 }
 
 h1 {
@@ -366,8 +376,11 @@ strong {
       <h1>Calculateur d'économies</h1>
       <p>Suivez votre arrêt du tabac et découvrez combien vous pouvez économiser.</p>
       <button id="installAppButton" class="install-button" type="button" hidden>Installer l'application</button>
-      <button id="openBadgesModalButton" type="button" class="ghost-button badges-open-button">🏅 Voir mes badges</button>
     </header>
+
+    <div class="badges-bar">
+      <button id="openBadgesModalButton" type="button" class="ghost-button badges-open-button">🏅 Voir mes badges</button>
+    </div>
 
     <section class="card input-card">
       <h2>Vos informations</h2>
