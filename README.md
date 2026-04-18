@@ -12,6 +12,7 @@ Application web de suivi d'arret du tabac avec objectifs, badges, graphique, mod
 - notifications navigateur
 - fondation PWA installable
 - backend Web Push pour notifications meme hors page
+- collecte d'idees d'amelioration via un formulaire en bas de page
 
 ## Prerequis
 
@@ -64,6 +65,7 @@ Le backend envoie :
 
 - les encouragements quotidiens quand le suivi est en pause
 - les alertes quand de nouveaux paquets economises sont detectes a partir de l'etat synchronise
+- les retours utilisateurs envoyes depuis l'interface sont stockes dans `data/feedback.json`
 
 Le traitement planifie tourne toutes les minutes dans `server.js`.
 
@@ -130,6 +132,7 @@ PORT=3000
 VAPID_SUBJECT=mailto:contact@example.com
 VAPID_PUBLIC_KEY=...
 VAPID_PRIVATE_KEY=...
+FEEDBACK_WEBHOOK_URL=
 ```
 
 ## Structure du projet
@@ -141,6 +144,7 @@ VAPID_PRIVATE_KEY=...
 - `manifest.webmanifest` : configuration PWA
 - `server.js` : backend Express + Web Push
 - `data/subscriptions.json` : stockage local des souscriptions push
+- `data/feedback.json` : stockage local des idees d'amelioration
 
 ## Limites techniques
 

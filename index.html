@@ -546,6 +546,21 @@ strong {
         <li><a href="https://www.santepubliquefrance.fr/" target="_blank" rel="noopener noreferrer">Santé publique France</a> - informations sanitaires officielles.</li>
       </ul>
     </section>
+
+    <section class="card feedback-card">
+      <h2>Une idée pour améliorer l'application ?</h2>
+      <p class="feedback-intro">Votre retour nous aide à rendre l'app plus utile chaque semaine.</p>
+      <form id="feedbackForm" class="feedback-form">
+        <label for="feedbackMessage">Votre idée</label>
+        <textarea id="feedbackMessage" rows="4" maxlength="600" placeholder="Ex: ajouter un mode sombre, améliorer les récompenses, ajouter un rappel personnalisé..."></textarea>
+
+        <label for="feedbackContact">Votre email (optionnel)</label>
+        <input id="feedbackContact" type="email" placeholder="vous@email.com" />
+
+        <button id="feedbackSendButton" type="submit">Envoyer mon idée</button>
+        <p id="feedbackStatus" class="feedback-status" aria-live="polite"></p>
+      </form>
+    </section>
   </main>
 
   <script src="./script.js"></script>

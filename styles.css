@@ -969,6 +969,53 @@ button.is-loading::after {
   text-decoration: underline;
 }
 
+.feedback-card {
+  margin-bottom: 28px;
+}
+
+.feedback-intro {
+  margin-top: 4px;
+  margin-bottom: 14px;
+}
+
+.feedback-form {
+  display: grid;
+  gap: 8px;
+}
+
+.feedback-form textarea {
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid #cfe2de;
+  border-radius: 14px;
+  font-size: 1rem;
+  color: var(--text);
+  background: #ffffff;
+  resize: vertical;
+  min-height: 110px;
+  font-family: inherit;
+}
+
+.feedback-form textarea:focus {
+  outline: none;
+  border-color: rgba(29, 143, 132, 0.55);
+  box-shadow: 0 0 0 4px rgba(29, 143, 132, 0.12);
+}
+
+.feedback-status {
+  min-height: 1.2em;
+  font-size: 0.9rem;
+  margin-top: -4px;
+}
+
+.feedback-status.success {
+  color: #117a5e;
+}
+
+.feedback-status.error {
+  color: #9b1c1c;
+}
+
 strong {
   display: inline-block;
   min-width: 150px;

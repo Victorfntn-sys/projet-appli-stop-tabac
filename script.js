@@ -46,6 +46,10 @@ const savingsProjection = document.getElementById('savingsProjection');
 const appLoadingScreen = document.getElementById('appLoadingScreen');
 const appLoadingProgress = document.getElementById('appLoadingProgress');
 const appLoadingLabel = document.getElementById('appLoadingLabel');
+const feedbackForm = document.getElementById('feedbackForm');
+const feedbackMessage = document.getElementById('feedbackMessage');
+const feedbackContact = document.getElementById('feedbackContact');
+const feedbackStatus = document.getElementById('feedbackStatus');
 let lastPackCount = 0;
 let pauseReminderIntervalId = null;
 let pushStateSyncIntervalId = null;
@@ -72,18 +76,23 @@ const pauseEncouragementMessages = [
 ];
 
 const healthMilestones = [
-  { days: 0, message: 'Commencez votre parcours pour vous sentir mieux rapidement.' },
-  { days: 1, message: '20 minutes : Votre rythme cardiaque et votre tension artérielle commencent à baisser.' },
-  { days: 1, message: '12 heures : Le taux de monoxyde de carbone dans votre sang revient à la normale.' },
-  { days: 2, message: '2-3 jours : Votre sens du goût et de l\'odorat s\'améliorent.' },
-  { days: 7, message: '1 semaine : Votre circulation sanguine s\'améliore.' },
-  { days: 14, message: '2 semaines : Votre fonction pulmonaire commence à s\'améliorer.' },
-  { days: 30, message: '1 mois : Votre risque d\'infection pulmonaire diminue.' },
-  { days: 90, message: '3 mois : Votre toux et votre essoufflement diminuent.' },
-  { days: 180, message: '6 mois : Votre système immunitaire se renforce.' },
-  { days: 365, message: '1 an : Votre risque de maladie cardiaque diminue de moitié.' },
-  { days: 1825, message: '5 ans : Votre risque de cancer du poumon diminue considérablement.' },
-  { days: 3650, message: '10 ans : Votre risque de cancer de la bouche et de la gorge diminue.' },
+  { days: 0, message: 'Chaque heure compte. Votre corps commence déjà à réparer.' },
+  { days: 1, message: '24 h : Le sang est mieux oxygéné. Vous êtes déjà sur la bonne pente.' },
+  { days: 2, message: '2-3 jours : Goût et odorat reviennent. Les plaisirs du quotidien changent.' },
+  { days: 3, message: '72 h : Respirer devient un peu plus facile. Continuez comme ça.' },
+  { days: 7, message: '1 semaine : La circulation s\'améliore. Vous gagnez en énergie.' },
+  { days: 14, message: '2 semaines : Les poumons repartent. Votre souffle progresse.' },
+  { days: 30, message: '1 mois : Votre récupération est meilleure. Le cap est solide.' },
+  { days: 60, message: '2 mois : Moins de fatigue, plus d\'endurance. Vous voyez la différence.' },
+  { days: 90, message: '3 mois : Toux et essoufflement diminuent nettement. Bravo.' },
+  { days: 120, message: '4 mois : Les voies respiratoires s\'apaisent. Le rythme devient naturel.' },
+  { days: 180, message: '6 mois : Votre immunité se renforce. Votre base santé est plus forte.' },
+  { days: 270, message: '9 mois : Les poumons se nettoient mieux. Votre progression est remarquable.' },
+  { days: 365, message: '1 an : Le risque cardiaque est déjà fortement réduit. Immense victoire.' },
+  { days: 730, message: '2 ans : Le risque d\'infarctus continue de baisser. Vous protégez votre futur.' },
+  { days: 1825, message: '5 ans : Le risque de cancer du poumon recule nettement. Continuez.' },
+  { days: 3650, message: '10 ans : Le risque de cancers ORL diminue à son tour. Cap maintenu.' },
+  { days: 5475, message: '15 ans : Le risque cardiovasculaire se rapproche d\'un non-fumeur. Exceptionnel.' },
 ];
 
 const badgeDefinitions = [
@@ -222,6 +231,51 @@ function saveNotificationsEnabled(value) {
 function getPauseEncouragementMessage(dateIso) {
   const hash = Array.from(dateIso).reduce((sum, char) => sum + char.charCodeAt(0), 0);
   return pauseEncouragementMessages[hash % pauseEncouragementMessages.length];
+}
+
+function setFeedbackStatus(message, type = '') {
+  if (!feedbackStatus) return;
+  feedbackStatus.textContent = message;
+  feedbackStatus.classList.remove('success', 'error');
+  if (type) {
+    feedbackStatus.classList.add(type);
+  }
+}
+
+async function handleFeedbackSubmit(event) {
+  event.preventDefault();
+  if (!feedbackForm || !feedbackMessage) return;
+
+  const message = feedbackMessage.value.trim();
+  const contact = feedbackContact?.value.trim() || '';
+
+  if (!message) {
+    setFeedbackStatus('Ajoutez votre idée avant l\'envoi.', 'error');
+    feedbackMessage.focus();
+    return;
+  }
+
+  setFeedbackStatus('Envoi en cours...');
+
+  try {
+    const response = await fetch('/api/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, contact }),
+    });
+
+    if (!response.ok) {
+      throw new Error('feedback-failed');
+    }
+
+    setFeedbackStatus('Merci ! Votre idée a bien été envoyée.', 'success');
+    feedbackMessage.value = '';
+    if (feedbackContact) {
+      feedbackContact.value = '';
+    }
+  } catch {
+    setFeedbackStatus('Impossible d\'envoyer pour le moment. Réessayez dans un instant.', 'error');
+  }
 }
 
 function urlBase64ToUint8Array(base64String) {
@@ -878,6 +932,7 @@ cigarettesPerPack.addEventListener('input', () => {
 });
 calculateButton.addEventListener('click', handleCalculateButtonClick);
 pauseToggleButton.addEventListener('click', togglePauseTracking);
+feedbackForm?.addEventListener('submit', handleFeedbackSubmit);
 
 window.addEventListener('DOMContentLoaded', async () => {
   const startedAt = performance.now();

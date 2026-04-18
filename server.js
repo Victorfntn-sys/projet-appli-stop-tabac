@@ -9,9 +9,11 @@ const app = express();
 const port = Number(process.env.PORT) || 3000;
 const dataDir = path.join(__dirname, 'data');
 const dataFile = path.join(dataDir, 'subscriptions.json');
+const feedbackFile = path.join(dataDir, 'feedback.json');
 const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || '';
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '';
 const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:contact@example.com';
+const feedbackWebhookUrl = process.env.FEEDBACK_WEBHOOK_URL || '';
 
 if (vapidPublicKey && vapidPrivateKey) {
   webPush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
@@ -29,6 +31,15 @@ async function ensureDataFile() {
   }
 }
 
+async function ensureFeedbackFile() {
+  await fs.mkdir(dataDir, { recursive: true });
+  try {
+    await fs.access(feedbackFile);
+  } catch {
+    await fs.writeFile(feedbackFile, '[]', 'utf8');
+  }
+}
+
 async function readSubscriptions() {
   await ensureDataFile();
   const raw = await fs.readFile(dataFile, 'utf8');
@@ -43,6 +54,22 @@ async function readSubscriptions() {
 async function writeSubscriptions(subscriptions) {
   await ensureDataFile();
   await fs.writeFile(dataFile, JSON.stringify(subscriptions, null, 2), 'utf8');
+}
+
+async function readFeedbackEntries() {
+  await ensureFeedbackFile();
+  const raw = await fs.readFile(feedbackFile, 'utf8');
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeFeedbackEntries(entries) {
+  await ensureFeedbackFile();
+  await fs.writeFile(feedbackFile, JSON.stringify(entries, null, 2), 'utf8');
 }
 
 function getSubscriptionId(subscription) {
@@ -228,6 +255,53 @@ app.post('/api/push/unsubscribe', async (req, res) => {
 app.post('/api/push/run-now', async (req, res) => {
   await sendScheduledNotifications();
   res.json({ ok: true });
+});
+
+app.post('/api/feedback', async (req, res) => {
+  try {
+    const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+    const contact = typeof req.body?.contact === 'string' ? req.body.contact.trim() : '';
+
+    if (!message || message.length < 5) {
+      res.status(400).json({ error: 'message-too-short' });
+      return;
+    }
+
+    if (message.length > 600) {
+      res.status(400).json({ error: 'message-too-long' });
+      return;
+    }
+
+    if (contact && contact.length > 200) {
+      res.status(400).json({ error: 'contact-too-long' });
+      return;
+    }
+
+    const entry = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      message,
+      contact,
+      createdAt: new Date().toISOString(),
+      userAgent: req.get('user-agent') || '',
+      source: req.get('origin') || req.get('host') || '',
+    };
+
+    const entries = await readFeedbackEntries();
+    entries.push(entry);
+    await writeFeedbackEntries(entries);
+
+    if (feedbackWebhookUrl) {
+      fetch(feedbackWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(entry),
+      }).catch(() => undefined);
+    }
+
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'feedback-save-failed' });
+  }
 });
 
 app.get('*', (req, res) => {
