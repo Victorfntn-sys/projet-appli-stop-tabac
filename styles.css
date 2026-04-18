@@ -447,8 +447,8 @@ button.is-loading::after {
   padding: 15px 16px;
   border-radius: 16px;
   background:
-    radial-gradient(circle at 16% 14%, rgba(255, 246, 215, 0.3), transparent 24%),
-    linear-gradient(180deg, #403224 0%, #2e2419 100%);
+    radial-gradient(circle at 16% 14%, rgba(255, 246, 215, 0.16), transparent 20%),
+    linear-gradient(180deg, #433327 0%, #2b2118 100%);
   border: 1px solid rgba(168, 131, 78, 0.34);
   box-shadow:
     inset 0 1px 0 rgba(255, 241, 214, 0.18),
@@ -465,7 +465,11 @@ button.is-loading::after {
   inset: 0;
   border-radius: 16px;
   background:
-    linear-gradient(90deg, transparent 0%, rgba(245, 222, 179, 0.05) 16%, transparent 30%),
+    radial-gradient(circle at 12px 12px, rgba(221, 182, 116, 0.18) 0 2px, transparent 3px),
+    radial-gradient(circle at calc(100% - 12px) 12px, rgba(221, 182, 116, 0.18) 0 2px, transparent 3px),
+    radial-gradient(circle at 12px calc(100% - 12px), rgba(221, 182, 116, 0.18) 0 2px, transparent 3px),
+    radial-gradient(circle at calc(100% - 12px) calc(100% - 12px), rgba(221, 182, 116, 0.18) 0 2px, transparent 3px),
+    linear-gradient(90deg, transparent 0%, rgba(245, 222, 179, 0.04) 16%, transparent 30%),
     repeating-linear-gradient(
       90deg,
       rgba(255, 255, 255, 0.02) 0,
@@ -495,7 +499,7 @@ button.is-loading::after {
 
 .badge-item.earned {
   background:
-    radial-gradient(circle at 16% 14%, rgba(255, 233, 179, 0.32), transparent 22%),
+    radial-gradient(circle at 16% 14%, rgba(255, 233, 179, 0.2), transparent 20%),
     linear-gradient(180deg, #4c3921 0%, #342514 100%);
   border-color: rgba(199, 160, 89, 0.58);
   box-shadow:
@@ -528,32 +532,58 @@ button.is-loading::after {
   transform: translateZ(0);
 }
 
+.badge-icon::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 250, 235, 0.28) 0 4px, rgba(88, 64, 31, 0.28) 4px 6px, transparent 7px),
+    radial-gradient(circle at 82% 18%, rgba(255, 250, 235, 0.28) 0 4px, rgba(88, 64, 31, 0.28) 4px 6px, transparent 7px),
+    radial-gradient(circle at 50% 82%, rgba(255, 250, 235, 0.22) 0 4px, rgba(88, 64, 31, 0.24) 4px 6px, transparent 7px),
+    linear-gradient(90deg, transparent 46%, rgba(255, 255, 255, 0.12) 49%, rgba(70, 49, 22, 0.28) 51%, transparent 54%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.badge-icon::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  clip-path: polygon(14% 4%, 86% 4%, 96% 18%, 92% 63%, 50% 100%, 8% 63%, 4% 18%);
+  border: 1px solid rgba(53, 37, 18, 0.45);
+  opacity: 0.85;
+  z-index: 1;
+  pointer-events: none;
+}
+
 .badge-ribbon {
   position: absolute;
-  top: 15px;
-  width: 10px;
-  height: 40px;
-  z-index: 1;
-  border-radius: 8px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  top: 18px;
+  width: 12px;
+  height: 34px;
+  z-index: 0;
+  border-radius: 4px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .badge-ribbon-left {
-  left: -4px;
-  transform: rotate(-8deg);
-  background: linear-gradient(180deg, #6d3220 0%, #2f160f 100%);
+  left: -6px;
+  transform: rotate(-10deg);
+  background: linear-gradient(180deg, #6c4d2c 0%, #3f2d19 100%);
 }
 
 .badge-ribbon-right {
-  right: -4px;
-  transform: rotate(8deg);
-  background: linear-gradient(180deg, #7a6132 0%, #3a2c16 100%);
+  right: -6px;
+  transform: rotate(10deg);
+  background: linear-gradient(180deg, #6c4d2c 0%, #3f2d19 100%);
 }
 
 .badge-icon-ring {
   position: absolute;
   inset: 3px;
-  z-index: 1;
+  z-index: 2;
   border: 2px solid rgba(229, 213, 181, 0.7);
   clip-path: polygon(14% 4%, 86% 4%, 96% 18%, 92% 63%, 50% 100%, 8% 63%, 4% 18%);
   box-shadow:
@@ -566,8 +596,9 @@ button.is-loading::after {
   inset: 8px 9px 12px;
   clip-path: polygon(14% 4%, 86% 4%, 96% 18%, 92% 63%, 50% 100%, 8% 63%, 4% 18%);
   background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.16) 0 49%, rgba(0, 0, 0, 0.12) 49% 51%, rgba(255, 255, 255, 0.1) 51% 100%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.02));
+    radial-gradient(circle at 22% 20%, rgba(255, 255, 255, 0.18), transparent 24%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.1) 0 49%, rgba(0, 0, 0, 0.14) 49% 51%, rgba(255, 255, 255, 0.06) 51% 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.02));
   box-shadow:
     inset 0 0 0 1px rgba(255, 241, 212, 0.18),
     inset 0 -8px 12px rgba(0, 0, 0, 0.16);
@@ -584,14 +615,15 @@ button.is-loading::after {
 
 .badge-icon-emblem {
   position: relative;
-  z-index: 3;
+  z-index: 4;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 1.65rem;
+  font-size: 1.5rem;
   font-weight: 700;
   line-height: 1;
+  color: rgba(244, 230, 202, 0.96);
   text-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.16),
-    0 2px 6px rgba(15, 23, 42, 0.45);
+    0 1px 0 rgba(255, 255, 255, 0.12),
+    0 2px 6px rgba(15, 23, 42, 0.5);
   filter: drop-shadow(0 2px 2px rgba(15, 23, 42, 0.35));
 }
 
@@ -619,6 +651,10 @@ button.is-loading::after {
     0 6px 14px rgba(15, 23, 42, 0.18);
 }
 
+.badge-item.locked .badge-icon::before {
+  opacity: 0.55;
+}
+
 .badge-item.locked .badge-ribbon-left,
 .badge-item.locked .badge-ribbon-right {
   background: linear-gradient(180deg, #9ca3af 0%, #6b7280 100%);
@@ -629,7 +665,7 @@ button.is-loading::after {
 }
 
 .badge-item.earned .badge-icon-shine {
-  animation: badgeShine 3.6s ease-in-out infinite;
+  animation: badgeShine 5.5s ease-in-out infinite;
 }
 
 .badge-info {
