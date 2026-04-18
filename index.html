@@ -272,6 +272,41 @@ button.is-loading::after {
   font-size: 1.05rem;
 }
 
+.result-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.result-card-head h2 {
+  margin: 0;
+}
+
+.badges-open-button {
+  margin-top: 2px;
+  width: auto;
+  min-width: 0;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--primary);
+  background: rgba(47, 124, 255, 0.1);
+  border: 1px solid rgba(47, 124, 255, 0.2);
+  box-shadow: none;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.badges-open-button:hover {
+  transform: none;
+  background: rgba(47, 124, 255, 0.15);
+  border-color: rgba(47, 124, 255, 0.3);
+  color: var(--primary-dark);
+}
+
 .links-card ul {
   padding-left: 18px;
   margin: 0;
@@ -314,6 +349,13 @@ strong {
   button {
     font-size: 1.05rem;
     padding: 16px 18px;
+  }
+
+  .badges-open-button {
+    margin-top: 0;
+    margin-left: auto;
+    font-size: 0.82rem;
+    padding: 6px 10px;
   }
 }
   </style>

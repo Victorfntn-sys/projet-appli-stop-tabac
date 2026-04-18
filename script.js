@@ -37,7 +37,6 @@ const updateLaterButton = document.getElementById('updateLaterButton');
 const notificationToggle = document.getElementById('notificationToggle');
 const notificationStatus = document.getElementById('notificationStatus');
 const resultCard = document.querySelector('.result-card');
-const tabButtons = document.querySelectorAll('.tab-button');
 let lastPackCount = 0;
 let savingsChart = null;
 let pauseReminderIntervalId = null;
@@ -500,10 +499,6 @@ function closeBadgesModal() {
 
 function activateTab(targetId, options = {}) {
   const { scrollToPanel = false } = options;
-  tabButtons.forEach(button => {
-    button.classList.toggle('active', button.dataset.tab === targetId);
-    button.setAttribute('aria-selected', button.dataset.tab === targetId ? 'true' : 'false');
-  });
   document.querySelectorAll('.tab-panel').forEach(panel => {
     panel.classList.toggle('active', panel.id === targetId);
   });
@@ -1024,11 +1019,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  tabButtons.forEach(button => {
-    button.addEventListener('click', () => {
-      activateTab(button.dataset.tab);
-    });
-  });
 });
 
 window.addEventListener('beforeinstallprompt', event => {
