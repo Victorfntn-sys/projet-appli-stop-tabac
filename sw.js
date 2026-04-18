@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stop-smoking-cache-v4';
+const CACHE_NAME = 'stop-smoking-cache-v5';
 const APP_ASSETS = [
   './',
   './index.html',
@@ -24,7 +24,10 @@ function isNetworkFirstRequest(requestUrl, requestMode) {
 async function networkFirst(request) {
   const cache = await caches.open(CACHE_NAME);
   try {
-    const freshResponse = await fetch(request);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1800);
+    const freshResponse = await fetch(request, { signal: controller.signal });
+    clearTimeout(timeoutId);
     cache.put(request, freshResponse.clone()).catch(() => undefined);
     return freshResponse;
   } catch {

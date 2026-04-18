@@ -42,6 +42,9 @@ const updateLaterButton = document.getElementById('updateLaterButton');
 const notificationToggle = document.getElementById('notificationToggle');
 const notificationStatus = document.getElementById('notificationStatus');
 const resultCard = document.querySelector('.result-card');
+const appLoadingScreen = document.getElementById('appLoadingScreen');
+const appLoadingProgress = document.getElementById('appLoadingProgress');
+const appLoadingLabel = document.getElementById('appLoadingLabel');
 let lastPackCount = 0;
 let savingsChart = null;
 let pauseReminderIntervalId = null;
@@ -556,6 +559,25 @@ function wait(ms) {
   return new Promise(resolve => window.setTimeout(resolve, ms));
 }
 
+function updateAppLoading(progress, label) {
+  if (appLoadingProgress) {
+    const safeProgress = Math.max(0, Math.min(100, progress));
+    appLoadingProgress.style.width = `${safeProgress}%`;
+  }
+  if (appLoadingLabel && label) {
+    appLoadingLabel.textContent = label;
+  }
+}
+
+async function hideAppLoadingScreen() {
+  if (!appLoadingScreen) {
+    return;
+  }
+  appLoadingScreen.classList.add('is-hidden');
+  await wait(240);
+  appLoadingScreen.remove();
+}
+
 function createSavingsChart(days, dailyCost) {
   const ctx = document.getElementById('savingsChart').getContext('2d');
   
@@ -959,8 +981,11 @@ calculateButton.addEventListener('click', handleCalculateButtonClick);
 pauseToggleButton.addEventListener('click', togglePauseTracking);
 
 window.addEventListener('DOMContentLoaded', async () => {
+  const startedAt = performance.now();
+  updateAppLoading(10, 'Initialisation de l\'application...');
   const today = new Date();
-  await registerServiceWorker();
+  const serviceWorkerReadyPromise = registerServiceWorker();
+  updateAppLoading(28, 'Restauration de vos données...');
   notificationsEnabled = getStoredNotificationsEnabled();
   const storedDate = getStoredQuitDate();
   const storedCigarettesPerDay = getStoredFieldValue(STORAGE_CIGARETTES_PER_DAY);
@@ -992,15 +1017,22 @@ window.addEventListener('DOMContentLoaded', async () => {
   quitDate.value = storedDate || today.toISOString().split('T')[0];
   lastPackCount = getStoredLastPackCount();
   trackingState = getStoredTrackingState();
+  updateAppLoading(54, 'Calcul de votre progression...');
   refreshTrackingUI(today);
   calculateSavings();
   updateNotificationStatus(Notification.permission);
+  updateAppLoading(74, 'Configuration des notifications...');
   if (notificationsEnabled && Notification.permission === 'granted') {
-    await subscribeToPushNotifications();
-    await syncPushState();
+    serviceWorkerReadyPromise
+      .then(() => subscribeToPushNotifications())
+      .then(() => syncPushState())
+      .catch(() => undefined);
   } else if (!notificationsEnabled) {
-    await unsubscribeFromPushNotifications();
+    serviceWorkerReadyPromise
+      .then(() => unsubscribeFromPushNotifications())
+      .catch(() => undefined);
   }
+  updateAppLoading(88, 'Finalisation de l\'interface...');
   startPushStateSyncScheduler();
   startPauseReminderScheduler();
   maybeSendPauseEncouragement();
@@ -1104,6 +1136,14 @@ window.addEventListener('DOMContentLoaded', async () => {
       calculateSavings();
     }
   });
+
+  updateAppLoading(100, 'Prêt');
+  const elapsed = performance.now() - startedAt;
+  const minimumVisibleMs = 700;
+  if (elapsed < minimumVisibleMs) {
+    await wait(minimumVisibleMs - elapsed);
+  }
+  await hideAppLoadingScreen();
 
 });
 

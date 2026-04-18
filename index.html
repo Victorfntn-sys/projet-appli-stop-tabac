@@ -398,6 +398,16 @@ strong {
   </style>
 </head>
 <body>
+  <div id="appLoadingScreen" class="app-loading-screen" role="status" aria-live="polite" aria-label="Chargement de l'application">
+    <div class="app-loading-card">
+      <p class="app-loading-title">Préparation de votre suivi</p>
+      <p id="appLoadingLabel" class="app-loading-label">Chargement...</p>
+      <div class="app-loading-track" aria-hidden="true">
+        <div id="appLoadingProgress" class="app-loading-fill"></div>
+      </div>
+    </div>
+  </div>
+
   <main class="app-shell">
     <header>
       <h1>Calculateur d'économies</h1>
