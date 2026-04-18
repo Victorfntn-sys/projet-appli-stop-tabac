@@ -762,30 +762,36 @@ async function handleCalculateButtonClick() {
 }
 
 function updateNotificationStatus(permission) {
+  const setNotificationMessage = message => {
+    if (notificationStatus) {
+      notificationStatus.textContent = message;
+    }
+  };
+
   if (!('Notification' in window)) {
-    notificationStatus.textContent = 'Notifications non supportées.';
+    setNotificationMessage('Notifications non supportées.');
     notificationToggle.checked = false;
     notificationToggle.disabled = true;
     return;
   }
   if (!notificationsEnabled) {
-    notificationStatus.textContent = permission === 'denied'
+    setNotificationMessage(permission === 'denied'
       ? 'Refusées par le navigateur et désactivées dans l’application.'
-      : 'Notifications désactivées dans l’application.';
+      : 'Notifications désactivées dans l’application.');
     notificationToggle.checked = false;
     notificationToggle.disabled = false;
     return;
   }
   if (permission === 'granted') {
-    notificationStatus.textContent = 'Notifications actives, y compris via le service worker si le push est configuré.';
+    setNotificationMessage('Notifications actives, y compris via le service worker si le push est configuré.');
     notificationToggle.checked = true;
     notificationToggle.disabled = false;
   } else if (permission === 'denied') {
-    notificationStatus.textContent = 'Refusées. Autorisez les notifications dans le navigateur.';
+    setNotificationMessage('Refusées. Autorisez les notifications dans le navigateur.');
     notificationToggle.checked = false;
     notificationToggle.disabled = false;
   } else {
-    notificationStatus.textContent = 'En attente de permission.';
+    setNotificationMessage('En attente de permission.');
     notificationToggle.checked = false;
     notificationToggle.disabled = false;
   }
