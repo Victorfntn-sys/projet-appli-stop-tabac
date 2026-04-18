@@ -135,6 +135,7 @@ VAPID_SUBJECT=mailto:contact@example.com
 VAPID_PUBLIC_KEY=...
 VAPID_PRIVATE_KEY=...
 FEEDBACK_WEBHOOK_URL=
+EXPORT_ADMIN_KEY=choisir_une_cle_secrete_forte
 ```
 
 ## Structure du projet
@@ -148,6 +149,13 @@ FEEDBACK_WEBHOOK_URL=
 - `data/subscriptions.json` : stockage local des souscriptions push
 - `data/feedback.json` : stockage local des idees d'amelioration
 - `data/user-states.csv` : export des informations utilisateur lisible dans Excel
+- `data/user-states.xlsx` : fichier Excel synchronise automatiquement avec les donnees utilisateur
+
+## Export global proprietaire (Excel)
+
+- Le bouton d'export dans l'interface telecharge toutes les donnees utilisateurs.
+- Cet export est protege par une cle admin (`EXPORT_ADMIN_KEY`).
+- Au clic, l'application demande la cle puis telecharge `all-user-states.xlsx`.
 
 ## Limites techniques
 

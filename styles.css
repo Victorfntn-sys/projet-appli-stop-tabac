@@ -1016,16 +1016,6 @@ button.is-loading::after {
   color: #9b1c1c;
 }
 
-.feedback-tools {
-  margin-top: 10px;
-  padding-top: 12px;
-  border-top: 1px dashed #d7ebe7;
-}
-
-.feedback-download-button {
-  margin-top: 0;
-}
-
 strong {
   display: inline-block;
   min-width: 150px;

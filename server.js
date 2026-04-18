@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const fs = require('fs/promises');
 const path = require('path');
+const ExcelJS = require('exceljs');
 const webPush = require('web-push');
 
 const app = express();
@@ -11,10 +12,12 @@ const dataDir = path.join(__dirname, 'data');
 const dataFile = path.join(dataDir, 'subscriptions.json');
 const feedbackFile = path.join(dataDir, 'feedback.json');
 const userStatesCsvFile = path.join(dataDir, 'user-states.csv');
+const userStatesXlsxFile = path.join(dataDir, 'user-states.xlsx');
 const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || '';
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '';
 const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:contact@example.com';
 const feedbackWebhookUrl = process.env.FEEDBACK_WEBHOOK_URL || '';
+const exportAdminKey = process.env.EXPORT_ADMIN_KEY || '';
 
 if (vapidPublicKey && vapidPrivateKey) {
   webPush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
@@ -65,6 +68,36 @@ async function ensureUserStatesCsvFile() {
       'userAgent',
     ].join(',');
     await fs.writeFile(userStatesCsvFile, `${header}\n`, 'utf8');
+  }
+}
+
+async function ensureUserStatesXlsxFile() {
+  await fs.mkdir(dataDir, { recursive: true });
+  try {
+    await fs.access(userStatesXlsxFile);
+  } catch {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('UserStates');
+    worksheet.columns = [
+      { header: 'createdAt', key: 'createdAt', width: 28 },
+      { header: 'clientId', key: 'clientId', width: 38 },
+      { header: 'quitDate', key: 'quitDate', width: 14 },
+      { header: 'cigsPerDay', key: 'cigsPerDay', width: 12 },
+      { header: 'cigsPerPack', key: 'cigsPerPack', width: 12 },
+      { header: 'pricePerPack', key: 'pricePerPack', width: 14 },
+      { header: 'goalName', key: 'goalName', width: 26 },
+      { header: 'goalAmount', key: 'goalAmount', width: 14 },
+      { header: 'isPaused', key: 'isPaused', width: 10 },
+      { header: 'pausedDaysTotal', key: 'pausedDaysTotal', width: 16 },
+      { header: 'daysWithoutSmoking', key: 'daysWithoutSmoking', width: 18 },
+      { header: 'savedCigarettes', key: 'savedCigarettes', width: 16 },
+      { header: 'savedMoney', key: 'savedMoney', width: 14 },
+      { header: 'dailyCost', key: 'dailyCost', width: 12 },
+      { header: 'source', key: 'source', width: 28 },
+      { header: 'userAgent', key: 'userAgent', width: 48 },
+    ];
+    worksheet.getRow(1).font = { bold: true };
+    await workbook.xlsx.writeFile(userStatesXlsxFile);
   }
 }
 
@@ -133,6 +166,38 @@ async function appendUserStateCsvRow(entry) {
     entry.userAgent,
   ].map(csvEscape).join(',');
   await fs.appendFile(userStatesCsvFile, `${row}\n`, 'utf8');
+}
+
+async function appendUserStateXlsxRow(entry) {
+  await ensureUserStatesXlsxFile();
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(userStatesXlsxFile);
+
+  let worksheet = workbook.getWorksheet('UserStates');
+  if (!worksheet) {
+    worksheet = workbook.addWorksheet('UserStates');
+  }
+
+  worksheet.addRow({
+    createdAt: entry.createdAt,
+    clientId: entry.clientId,
+    quitDate: entry.quitDate,
+    cigsPerDay: entry.cigsPerDay,
+    cigsPerPack: entry.cigsPerPack,
+    pricePerPack: entry.pricePerPack,
+    goalName: entry.goalName,
+    goalAmount: entry.goalAmount,
+    isPaused: entry.isPaused,
+    pausedDaysTotal: entry.pausedDaysTotal,
+    daysWithoutSmoking: entry.daysWithoutSmoking,
+    savedCigarettes: entry.savedCigarettes,
+    savedMoney: entry.savedMoney,
+    dailyCost: entry.dailyCost,
+    source: entry.source,
+    userAgent: entry.userAgent,
+  });
+
+  await workbook.xlsx.writeFile(userStatesXlsxFile);
 }
 
 function getTodayIso() {
@@ -391,18 +456,42 @@ app.post('/api/user-state', async (req, res) => {
     }
 
     await appendUserStateCsvRow(entry);
+    await appendUserStateXlsxRow(entry);
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: 'user-state-save-failed' });
   }
 });
 
-app.get('/api/user-state/export', async (req, res) => {
+app.get('/api/user-state/export-all', async (req, res) => {
   try {
+    const providedKey = typeof req.query?.key === 'string' ? req.query.key.trim() : '';
+    if (!exportAdminKey || providedKey !== exportAdminKey) {
+      res.status(403).json({ error: 'forbidden' });
+      return;
+    }
+
     await ensureUserStatesCsvFile();
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="user-states.csv"');
+    res.setHeader('Content-Disposition', 'attachment; filename="all-user-states.csv"');
     res.sendFile(userStatesCsvFile);
+  } catch {
+    res.status(500).json({ error: 'user-state-export-failed' });
+  }
+});
+
+app.get('/api/user-state/export-all.xlsx', async (req, res) => {
+  try {
+    const providedKey = typeof req.query?.key === 'string' ? req.query.key.trim() : '';
+    if (!exportAdminKey || providedKey !== exportAdminKey) {
+      res.status(403).json({ error: 'forbidden' });
+      return;
+    }
+
+    await ensureUserStatesXlsxFile();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="all-user-states.xlsx"');
+    res.sendFile(userStatesXlsxFile);
   } catch {
     res.status(500).json({ error: 'user-state-export-failed' });
   }
@@ -412,7 +501,7 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-Promise.all([ensureDataFile(), ensureFeedbackFile(), ensureUserStatesCsvFile()]).then(() => {
+Promise.all([ensureDataFile(), ensureFeedbackFile(), ensureUserStatesCsvFile(), ensureUserStatesXlsxFile()]).then(() => {
   app.listen(port, () => {
     console.log(`Server running on http://localhost:${port}`);
   });
