@@ -42,11 +42,11 @@ const updateLaterButton = document.getElementById('updateLaterButton');
 const notificationToggle = document.getElementById('notificationToggle');
 const notificationStatus = document.getElementById('notificationStatus');
 const resultCard = document.querySelector('.result-card');
+const savingsProjection = document.getElementById('savingsProjection');
 const appLoadingScreen = document.getElementById('appLoadingScreen');
 const appLoadingProgress = document.getElementById('appLoadingProgress');
 const appLoadingLabel = document.getElementById('appLoadingLabel');
 let lastPackCount = 0;
-let savingsChart = null;
 let pauseReminderIntervalId = null;
 let pushStateSyncIntervalId = null;
 let serviceWorkerUpdateIntervalId = null;
@@ -578,145 +578,44 @@ async function hideAppLoadingScreen() {
   appLoadingScreen.remove();
 }
 
-function createSavingsChart(days, dailyCost) {
-  const ctx = document.getElementById('savingsChart').getContext('2d');
-  
-  // Séparer données réelles et estimations
-  const totalWeeks = Math.max(Math.ceil(days / 7) + 8, 26); // Au moins 6 mois
-  const currentWeek = Math.floor(days / 7);
-  
-  const labels = [];
-  const actualData = [];
-  const projectedData = [];
-  
-  for (let week = 0; week <= totalWeeks; week++) {
-    const weekDays = week * 7;
-    labels.push(week === 0 ? 'Début' : week === 1 ? '1 sem.' : `${week} sem.`);
-    
-    if (week <= currentWeek) {
-      // Données réelles (jusqu'à aujourd'hui)
-      actualData.push(dailyCost * weekDays);
-      projectedData.push(null); // Pas de données projetées pour le passé
-    } else {
-      // Estimations futures : continue à monter
-      actualData.push(null); // Pas de données réelles pour le futur
-      projectedData.push(dailyCost * weekDays);
-    }
-  }
-  
-  if (savingsChart) {
-    savingsChart.destroy();
-  }
-  
-  savingsChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [
-        {
-          label: 'Économies réalisées',
-          data: actualData,
-          borderColor: '#16a34a',
-          backgroundColor: 'rgba(22, 163, 74, 0.1)',
-          fill: true,
-          tension: 0.4,
-          pointRadius: 0,
-          pointHoverRadius: 6,
-          borderWidth: 3,
-        },
-        {
-          label: 'Estimation future',
-          data: projectedData,
-          borderColor: '#2f7cff',
-          backgroundColor: 'rgba(47, 124, 255, 0.05)',
-          fill: true,
-          tension: 0.4,
-          pointRadius: 0,
-          pointHoverRadius: 6,
-          borderWidth: 2,
-          borderDash: [5, 5], // Ligne pointillée
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: true,
-          position: 'top',
-          labels: {
-            usePointStyle: true,
-            padding: 20,
-            font: {
-              size: 12
-            }
-          }
-        },
-        tooltip: {
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          titleColor: '#ffffff',
-          bodyColor: '#ffffff',
-          cornerRadius: 6,
-          displayColors: true,
-          callbacks: {
-            title: function(context) {
-              const week = context[0].dataIndex;
-              if (week === 0) return 'Début';
-              return `Semaine ${week}`;
-            },
-            label: function(context) {
-              const label = context.dataset.label;
-              return `${label} : ${formatCurrency(context.parsed.y)}`;
-            }
-          }
-        }
-      },
-      scales: {
-        x: {
-          grid: {
-            display: false
-          },
-          ticks: {
-            color: '#5f6d7a',
-            font: {
-              size: 11
-            },
-            maxTicksLimit: 8,
-            callback: function(value, index) {
-              const week = index;
-              if (week === 0) return 'Début';
-              if (week % 4 === 0) return `${week} sem.`;
-              return '';
-            }
-          }
-        },
-        y: {
-          beginAtZero: true,
-          grid: {
-            color: 'rgba(216, 226, 239, 0.3)'
-          },
-          ticks: {
-            color: '#5f6d7a',
-            font: {
-              size: 12
-            },
-            callback: function(value) {
-              return value >= 1000 ? `${(value / 1000).toFixed(1)}k€` : `${value}€`;
-            }
-          }
-        }
-      },
-      animation: {
-        duration: 1500,
-        easing: 'easeOutCubic'
-      },
-      interaction: {
-        intersect: false,
-        mode: 'index'
-      }
-    }
-  });
+function createSavingsProjection(days, dailyCost, savedMoney) {
+  if (!savingsProjection) return;
+
+  const daysDone = Math.max(0, days);
+  const cigsPerDay = Number(cigarettesPerDay?.value) || 0;
+
+  // Motivational messages based on streak length
+  const messages = [
+    [0,   'Lance-toi, tu peux le faire !'],
+    [1,   'Premier jour — bravo ! 💪'],
+    [3,   'Tu tiens déjà 3 jours !'],
+    [7,   'Une semaine entière ! 🙌'],
+    [14,  'Deux semaines — tu es en feu !'],
+    [30,  'Un mois sans tabac — incroyable ! 🏆'],
+    [90,  'Trois mois ! Tes poumons te remercient.'],
+    [180, 'Six mois — tu es une inspiration !'],
+    [365, '🎉 Un an sans tabac. Tu es un héros !'],
+  ];
+  const msg = [...messages].reverse().find(([d]) => daysDone >= d)?.[1] || messages[0][1];
+
+  // Next milestone
+  const milestones = [7, 30, 90, 180, 365];
+  const nextMilestone = milestones.find(m => m > daysDone);
+
+  savingsProjection.innerHTML = `
+    <div class="chain-header">
+      <span class="chain-flame">${daysDone >= 7 ? '🔥' : '✨'}</span>
+      <span class="chain-count">${daysDone}</span>
+      <span class="chain-subtitle">jour${daysDone > 1 ? 's' : ''} sans tabac</span>
+      <span class="chain-message">${msg}</span>
+    </div>
+    <div class="chain-stats">
+      <div class="chain-stat">
+        <span class="chain-stat-icon">🎯</span>
+        <span class="chain-stat-value">${nextMilestone ? nextMilestone - daysDone + 'j' : '🏆'}</span>
+        <span class="chain-stat-label">${nextMilestone ? 'avant ' + (nextMilestone >= 365 ? '1 an' : nextMilestone >= 180 ? '6 mois' : nextMilestone >= 90 ? '3 mois' : nextMilestone >= 30 ? '1 mois' : '1 sem.') : 'tous atteints'}</span>
+      </div>
+    </div>`;
 }
 
 function calculateSavings() {
@@ -743,7 +642,7 @@ function calculateSavings() {
   milestoneText.textContent = getHealthMilestone(days);
   updateGoalDisplay(savedMoney, dailyCost);
   updateBadges(days, savedMoney, goalTarget);
-  createSavingsChart(days, dailyCost);
+  createSavingsProjection(days, dailyCost, savedMoney);
   syncPushState();
 
   const packsSaved = cigsPerPack > 0 ? Math.floor(savedCigarettes / cigsPerPack) : 0;
