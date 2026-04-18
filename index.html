@@ -285,11 +285,12 @@ button.is-loading::after {
 }
 
 .badges-open-button {
-  margin-top: 2px;
+  display: block;
+  margin: 12px auto 0;
   width: auto;
   min-width: 0;
   border-radius: 999px;
-  padding: 7px 12px;
+  padding: 7px 16px;
   font-size: 0.86rem;
   font-weight: 700;
   line-height: 1;
@@ -352,10 +353,9 @@ strong {
   }
 
   .badges-open-button {
-    margin-top: 0;
-    margin-left: auto;
+    margin-top: 10px;
     font-size: 0.82rem;
-    padding: 6px 10px;
+    padding: 6px 12px;
   }
 }
   </style>
@@ -366,6 +366,7 @@ strong {
       <h1>Calculateur d'économies</h1>
       <p>Suivez votre arrêt du tabac et découvrez combien vous pouvez économiser.</p>
       <button id="installAppButton" class="install-button" type="button" hidden>Installer l'application</button>
+      <button id="openBadgesModalButton" type="button" class="ghost-button badges-open-button">🏅 Voir mes badges</button>
     </header>
 
     <section class="card input-card">
@@ -412,10 +413,7 @@ strong {
     </section>
 
     <section class="card result-card" aria-live="polite">
-      <div class="result-card-head">
-        <h2>Économies estimées</h2>
-        <button id="openBadgesModalButton" type="button" class="ghost-button badges-open-button">Voir les badges</button>
-      </div>
+      <h2>Économies estimées</h2>
       <div class="tab-panels">
         <div id="detailsTab" class="tab-panel active">
           <div class="results">

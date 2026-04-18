@@ -315,11 +315,12 @@ button.is-loading::after {
 }
 
 .badges-open-button {
-  margin-top: 2px;
+  display: block;
+  margin: 12px auto 0;
   width: auto;
   min-width: 0;
   border-radius: 999px;
-  padding: 7px 12px;
+  padding: 7px 16px;
   font-size: 0.86rem;
   font-weight: 700;
   line-height: 1;
@@ -886,10 +887,9 @@ strong {
   }
 
   .badges-open-button {
-    margin-top: 0;
-    margin-left: auto;
+    margin-top: 10px;
     font-size: 0.82rem;
-    padding: 6px 10px;
+    padding: 6px 12px;
   }
 
   .tracking-actions {
@@ -970,8 +970,7 @@ strong {
   }
 
   .badges-open-button {
-    margin-top: 0;
-    margin-left: auto;
+    margin-top: 8px;
     padding: 6px 10px;
     font-size: 0.8rem;
   }
