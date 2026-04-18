@@ -444,15 +444,16 @@ button.is-loading::after {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 14px 16px;
-  border-radius: 14px;
+  padding: 15px 16px;
+  border-radius: 16px;
   background:
-    radial-gradient(ellipse at top left, rgba(255, 248, 220, 0.9), transparent 60%),
-    linear-gradient(180deg, #fdf6e3 0%, #ede3c8 100%);
-  border: 1px solid rgba(139, 90, 20, 0.28);
+    radial-gradient(circle at 16% 14%, rgba(255, 246, 215, 0.3), transparent 24%),
+    linear-gradient(180deg, #403224 0%, #2e2419 100%);
+  border: 1px solid rgba(168, 131, 78, 0.34);
   box-shadow:
-    0 2px 0 rgba(255,255,255,0.7) inset,
-    0 6px 20px rgba(100, 60, 10, 0.12);
+    inset 0 1px 0 rgba(255, 241, 214, 0.18),
+    inset 0 -16px 24px rgba(0, 0, 0, 0.18),
+    0 10px 24px rgba(15, 23, 42, 0.18);
   cursor: pointer;
   transition: transform 180ms ease, box-shadow 180ms ease;
   overflow: hidden;
@@ -462,107 +463,120 @@ button.is-loading::after {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 14px;
-  background: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 18px,
-    rgba(139, 90, 20, 0.04) 18px,
-    rgba(139, 90, 20, 0.04) 19px
-  );
+  border-radius: 16px;
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(245, 222, 179, 0.05) 16%, transparent 30%),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.02) 0,
+      rgba(255, 255, 255, 0.02) 1px,
+      transparent 1px,
+      transparent 12px
+    );
   pointer-events: none;
 }
 
 .badge-item::after {
   content: "";
   position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.5), transparent);
+  inset: 2px;
+  border-radius: 14px;
+  border: 1px solid rgba(216, 180, 118, 0.14);
   pointer-events: none;
 }
 
 .badge-item:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(100, 60, 10, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 241, 214, 0.2),
+    inset 0 -16px 24px rgba(0, 0, 0, 0.16),
+    0 14px 30px rgba(15, 23, 42, 0.24);
 }
 
 .badge-item.earned {
   background:
-    radial-gradient(ellipse at top left, rgba(255, 252, 210, 0.95), transparent 55%),
-    linear-gradient(180deg, #fefce8 0%, #fde68a 100%);
-  border-color: rgba(212, 175, 55, 0.55);
+    radial-gradient(circle at 16% 14%, rgba(255, 233, 179, 0.32), transparent 22%),
+    linear-gradient(180deg, #4c3921 0%, #342514 100%);
+  border-color: rgba(199, 160, 89, 0.58);
   box-shadow:
-    0 2px 0 rgba(255,255,255,0.8) inset,
-    0 8px 28px rgba(146, 101, 10, 0.2),
-    0 0 0 1px rgba(212, 175, 55, 0.2);
+    inset 0 1px 0 rgba(255, 236, 194, 0.22),
+    inset 0 -18px 26px rgba(0, 0, 0, 0.18),
+    0 12px 28px rgba(60, 37, 11, 0.24),
+    0 0 0 1px rgba(212, 175, 55, 0.18);
 }
 
 .badge-item.locked {
-  background: linear-gradient(180deg, #f0ece0 0%, #e0d8c4 100%);
-  border-color: rgba(148, 130, 90, 0.3);
-  opacity: 0.85;
+  background: linear-gradient(180deg, #38332d 0%, #292522 100%);
+  border-color: rgba(124, 116, 103, 0.32);
+  opacity: 0.92;
 }
 
 .badge-icon {
-  width: 58px;
-  height: 70px;
+  width: 64px;
+  height: 78px;
   display: grid;
   place-items: center;
   flex: 0 0 auto;
   color: white;
   position: relative;
-  clip-path: polygon(0% 0%, 100% 0%, 100% 68%, 50% 100%, 0% 68%);
+  clip-path: polygon(14% 4%, 86% 4%, 96% 18%, 92% 63%, 50% 100%, 8% 63%, 4% 18%);
   box-shadow:
-    inset 0 8px 16px rgba(255, 255, 255, 0.3),
-    inset 0 -6px 12px rgba(15, 23, 42, 0.25),
-    0 6px 18px rgba(15, 23, 42, 0.2);
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    inset 0 -12px 16px rgba(0, 0, 0, 0.24),
+    0 8px 18px rgba(15, 23, 42, 0.24);
   overflow: hidden;
   transform: translateZ(0);
 }
 
 .badge-ribbon {
   position: absolute;
-  bottom: -8px;
-  width: 15px;
-  height: 23px;
+  top: 15px;
+  width: 10px;
+  height: 40px;
   z-index: 1;
-  clip-path: polygon(50% 100%, 0 0, 100% 0);
-  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .badge-ribbon-left {
-  left: 11px;
-  background: linear-gradient(180deg, #9b1c1c 0%, #5f1010 100%);
+  left: -4px;
+  transform: rotate(-8deg);
+  background: linear-gradient(180deg, #6d3220 0%, #2f160f 100%);
 }
 
 .badge-ribbon-right {
-  right: 11px;
-  background: linear-gradient(180deg, #1d4ed8 0%, #1e3a8a 100%);
+  right: -4px;
+  transform: rotate(8deg);
+  background: linear-gradient(180deg, #7a6132 0%, #3a2c16 100%);
 }
 
 .badge-icon-ring {
   position: absolute;
-  inset: 5px 6px 9px;
+  inset: 3px;
   z-index: 1;
-  border: 2px solid rgba(255, 255, 255, 0.45);
-  border-radius: 0 0 1px 1px;
-  clip-path: polygon(0% 0%, 100% 0%, 100% 68%, 50% 100%, 0% 68%);
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.12);
+  border: 2px solid rgba(229, 213, 181, 0.7);
+  clip-path: polygon(14% 4%, 86% 4%, 96% 18%, 92% 63%, 50% 100%, 8% 63%, 4% 18%);
+  box-shadow:
+    inset 0 0 0 1px rgba(88, 64, 31, 0.45),
+    0 0 0 1px rgba(255, 244, 221, 0.18);
 }
 
 .badge-icon-core {
   position: absolute;
-  inset: 0;
+  inset: 8px 9px 12px;
+  clip-path: polygon(14% 4%, 86% 4%, 96% 18%, 92% 63%, 50% 100%, 8% 63%, 4% 18%);
   background:
-    linear-gradient(to bottom right, rgba(255,255,255,0.18) 50%, rgba(0,0,0,0.12) 50%),
-    linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0.04));
+    linear-gradient(90deg, rgba(255, 255, 255, 0.16) 0 49%, rgba(0, 0, 0, 0.12) 49% 51%, rgba(255, 255, 255, 0.1) 51% 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.02));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 241, 212, 0.18),
+    inset 0 -8px 12px rgba(0, 0, 0, 0.16);
 }
 
 .badge-icon-shine {
   position: absolute;
   inset: 0;
-  background: linear-gradient(120deg, transparent 18%, rgba(255, 255, 255, 0.6) 34%, transparent 48%);
+  background: linear-gradient(115deg, transparent 18%, rgba(255, 255, 255, 0.34) 35%, transparent 48%);
   transform: translateX(-140%);
   z-index: 2;
   pointer-events: none;
@@ -571,32 +585,38 @@ button.is-loading::after {
 .badge-icon-emblem {
   position: relative;
   z-index: 3;
-  font-size: 1.45rem;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.65rem;
+  font-weight: 700;
   line-height: 1;
-  filter: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.35));
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.16),
+    0 2px 6px rgba(15, 23, 42, 0.45);
+  filter: drop-shadow(0 2px 2px rgba(15, 23, 42, 0.35));
 }
 
 .badge-finish-bronze {
-  background: linear-gradient(160deg, #d4824a 0%, #a0521e 45%, #7a3c12 100%);
+  background: linear-gradient(160deg, #7e4d2c 0%, #b9773d 30%, #6e3819 62%, #41200f 100%);
 }
 
 .badge-finish-steel {
-  background: linear-gradient(160deg, #d6dde8 0%, #8496ae 45%, #4e5f75 100%);
+  background: linear-gradient(160deg, #748194 0%, #cfd7e2 28%, #718098 56%, #3d4959 100%);
 }
 
 .badge-finish-gold {
-  background: linear-gradient(160deg, #f7d56e 0%, #c8900a 45%, #8b6008 100%);
+  background: linear-gradient(160deg, #866313 0%, #e3bc52 26%, #9f7318 58%, #5a3d0b 100%);
 }
 
 .badge-finish-royal {
-  background: linear-gradient(160deg, #6b8ee8 0%, #1e3faa 45%, #0d1f6b 100%);
+  background: linear-gradient(160deg, #223775 0%, #4d67b8 28%, #233f8b 58%, #121f47 100%);
 }
 
 .badge-item.locked .badge-icon {
-  filter: grayscale(1) brightness(0.85);
+  filter: grayscale(1) saturate(0.45) brightness(0.78);
   box-shadow:
-    inset 0 4px 10px rgba(255, 255, 255, 0.15),
-    0 4px 12px rgba(15, 23, 42, 0.1);
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -10px 14px rgba(0, 0, 0, 0.28),
+    0 6px 14px rgba(15, 23, 42, 0.18);
 }
 
 .badge-item.locked .badge-ribbon-left,
@@ -621,7 +641,7 @@ button.is-loading::after {
 
 .badge-status {
   font-size: 0.68rem;
-  color: #64748b;
+  color: #d6cab3;
   display: inline-flex;
   align-items: center;
   width: fit-content;
@@ -629,33 +649,33 @@ button.is-loading::after {
   border-radius: 999px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 248, 231, 0.08);
+  border: 1px solid rgba(216, 180, 118, 0.16);
 }
 
 .badge-status-earned {
-  color: #855d10;
-  background: linear-gradient(180deg, rgba(255, 246, 204, 0.92), rgba(255, 236, 158, 0.82));
-  border-color: rgba(212, 175, 55, 0.3);
+  color: #f3ddb0;
+  background: linear-gradient(180deg, rgba(159, 114, 23, 0.34), rgba(97, 67, 17, 0.42));
+  border-color: rgba(212, 175, 55, 0.26);
 }
 
 .badge-status-locked {
-  color: #64748b;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(226, 232, 240, 0.78));
+  color: #c5b9a2;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.08));
 }
 
 .badge-title {
   font-size: 0.9rem;
-  color: #3b2a10;
+  color: #f3e7cf;
   letter-spacing: 0.02em;
   font-weight: 700;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.32);
 }
 
 .badge-description {
   display: none;
   font-size: 0.8rem;
-  color: var(--muted);
+  color: #d2c2a7;
   line-height: 1.55;
   margin-top: 4px;
 }
