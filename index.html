@@ -234,6 +234,33 @@ button:hover {
   transform: translateY(-1px);
 }
 
+button.is-loading {
+  position: relative;
+  color: rgba(255, 255, 255, 0.9);
+  cursor: wait;
+  pointer-events: none;
+}
+
+button.is-loading::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 18px;
+  width: 16px;
+  height: 16px;
+  margin-top: -8px;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: buttonSpinner 0.7s linear infinite;
+}
+
+@keyframes buttonSpinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .results {
   display: grid;
   gap: 16px;

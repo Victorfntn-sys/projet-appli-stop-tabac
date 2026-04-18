@@ -479,6 +479,19 @@ function closeBadgeModal() {
   document.body.style.overflow = '';
 }
 
+function activateTab(targetId) {
+  tabButtons.forEach(button => {
+    button.classList.toggle('active', button.dataset.tab === targetId);
+  });
+  document.querySelectorAll('.tab-panel').forEach(panel => {
+    panel.classList.toggle('active', panel.id === targetId);
+  });
+}
+
+function wait(ms) {
+  return new Promise(resolve => window.setTimeout(resolve, ms));
+}
+
 function createSavingsChart(days, dailyCost) {
   const ctx = document.getElementById('savingsChart').getContext('2d');
   
@@ -662,6 +675,28 @@ function calculateSavings() {
   }
 }
 
+async function handleCalculateButtonClick() {
+  if (!calculateButton) {
+    calculateSavings();
+    activateTab('detailsTab');
+    return;
+  }
+
+  const originalLabel = calculateButton.textContent;
+  calculateButton.classList.add('is-loading');
+  calculateButton.disabled = true;
+  calculateButton.textContent = 'Calcul en cours...';
+
+  await wait(650);
+
+  calculateSavings();
+  activateTab('detailsTab');
+
+  calculateButton.classList.remove('is-loading');
+  calculateButton.disabled = false;
+  calculateButton.textContent = originalLabel;
+}
+
 function updateNotificationStatus(permission) {
   if (!('Notification' in window)) {
     notificationStatus.textContent = 'Notifications non supportées.';
@@ -838,7 +873,7 @@ goalAmountInput.addEventListener('input', () => {
 
 cigarettesPerDay.addEventListener('input', calculateSavings);
 cigarettesPerPack.addEventListener('input', calculateSavings);
-calculateButton.addEventListener('click', calculateSavings);
+calculateButton.addEventListener('click', handleCalculateButtonClick);
 pauseToggleButton.addEventListener('click', togglePauseTracking);
 
 window.addEventListener('DOMContentLoaded', async () => {
@@ -951,11 +986,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   tabButtons.forEach(button => {
     button.addEventListener('click', () => {
-      const target = button.dataset.tab;
-      tabButtons.forEach(tab => tab.classList.toggle('active', tab === button));
-      document.querySelectorAll('.tab-panel').forEach(panel => {
-        panel.classList.toggle('active', panel.id === target);
-      });
+      activateTab(button.dataset.tab);
     });
   });
 });
