@@ -397,6 +397,17 @@ app.post('/api/user-state', async (req, res) => {
   }
 });
 
+app.get('/api/user-state/export', async (req, res) => {
+  try {
+    await ensureUserStatesCsvFile();
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="user-states.csv"');
+    res.sendFile(userStatesCsvFile);
+  } catch {
+    res.status(500).json({ error: 'user-state-export-failed' });
+  }
+});
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });

@@ -51,6 +51,8 @@ const feedbackForm = document.getElementById('feedbackForm');
 const feedbackMessage = document.getElementById('feedbackMessage');
 const feedbackContact = document.getElementById('feedbackContact');
 const feedbackStatus = document.getElementById('feedbackStatus');
+const downloadUserCsvButton = document.getElementById('downloadUserCsvButton');
+const downloadUserCsvStatus = document.getElementById('downloadUserCsvStatus');
 let lastPackCount = 0;
 let pauseReminderIntervalId = null;
 let pushStateSyncIntervalId = null;
@@ -260,6 +262,47 @@ function setFeedbackStatus(message, type = '') {
   feedbackStatus.classList.remove('success', 'error');
   if (type) {
     feedbackStatus.classList.add(type);
+  }
+}
+
+function setDownloadCsvStatus(message, type = '') {
+  if (!downloadUserCsvStatus) return;
+  downloadUserCsvStatus.textContent = message;
+  downloadUserCsvStatus.classList.remove('success', 'error');
+  if (type) {
+    downloadUserCsvStatus.classList.add(type);
+  }
+}
+
+async function handleDownloadUserCsv() {
+  if (!downloadUserCsvButton) return;
+
+  downloadUserCsvButton.classList.add('is-loading');
+  downloadUserCsvButton.disabled = true;
+  setDownloadCsvStatus('Préparation du fichier...');
+
+  try {
+    const response = await fetch('/api/user-state/export');
+    if (!response.ok) {
+      throw new Error('csv-download-failed');
+    }
+
+    const blob = await response.blob();
+    const fileUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = fileUrl;
+    link.download = 'user-states.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(fileUrl);
+
+    setDownloadCsvStatus('Téléchargement lancé. Ouvrez le fichier avec Excel.', 'success');
+  } catch {
+    setDownloadCsvStatus('Impossible de télécharger le fichier pour le moment.', 'error');
+  } finally {
+    downloadUserCsvButton.classList.remove('is-loading');
+    downloadUserCsvButton.disabled = false;
   }
 }
 
@@ -995,6 +1038,7 @@ cigarettesPerPack.addEventListener('input', () => {
 calculateButton.addEventListener('click', handleCalculateButtonClick);
 pauseToggleButton.addEventListener('click', togglePauseTracking);
 feedbackForm?.addEventListener('submit', handleFeedbackSubmit);
+downloadUserCsvButton?.addEventListener('click', handleDownloadUserCsv);
 
 window.addEventListener('DOMContentLoaded', async () => {
   const startedAt = performance.now();
