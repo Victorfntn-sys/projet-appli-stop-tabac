@@ -447,13 +447,13 @@ button.is-loading::after {
   padding: 15px 16px;
   border-radius: 16px;
   background:
-    radial-gradient(circle at 16% 14%, rgba(255, 246, 215, 0.16), transparent 20%),
-    linear-gradient(180deg, #433327 0%, #2b2118 100%);
-  border: 1px solid rgba(168, 131, 78, 0.34);
+    radial-gradient(circle at 16% 14%, rgba(255, 246, 215, 0.42), transparent 22%),
+    linear-gradient(180deg, #f4ead8 0%, #e5d6bf 100%);
+  border: 1px solid rgba(168, 131, 78, 0.28);
   box-shadow:
-    inset 0 1px 0 rgba(255, 241, 214, 0.18),
-    inset 0 -16px 24px rgba(0, 0, 0, 0.18),
-    0 10px 24px rgba(15, 23, 42, 0.18);
+    inset 0 1px 0 rgba(255, 255, 255, 0.52),
+    inset 0 -16px 24px rgba(120, 86, 41, 0.1),
+    0 10px 24px rgba(15, 23, 42, 0.12);
   cursor: pointer;
   transition: transform 180ms ease, box-shadow 180ms ease;
   overflow: hidden;
@@ -469,11 +469,11 @@ button.is-loading::after {
     radial-gradient(circle at calc(100% - 12px) 12px, rgba(221, 182, 116, 0.18) 0 2px, transparent 3px),
     radial-gradient(circle at 12px calc(100% - 12px), rgba(221, 182, 116, 0.18) 0 2px, transparent 3px),
     radial-gradient(circle at calc(100% - 12px) calc(100% - 12px), rgba(221, 182, 116, 0.18) 0 2px, transparent 3px),
-    linear-gradient(90deg, transparent 0%, rgba(245, 222, 179, 0.04) 16%, transparent 30%),
+    linear-gradient(90deg, transparent 0%, rgba(245, 222, 179, 0.09) 16%, transparent 30%),
     repeating-linear-gradient(
       90deg,
-      rgba(255, 255, 255, 0.02) 0,
-      rgba(255, 255, 255, 0.02) 1px,
+      rgba(122, 86, 39, 0.03) 0,
+      rgba(122, 86, 39, 0.03) 1px,
       transparent 1px,
       transparent 12px
     );
@@ -485,33 +485,33 @@ button.is-loading::after {
   position: absolute;
   inset: 2px;
   border-radius: 14px;
-  border: 1px solid rgba(216, 180, 118, 0.14);
+  border: 1px solid rgba(216, 180, 118, 0.22);
   pointer-events: none;
 }
 
 .badge-item:hover {
   transform: translateY(-2px);
   box-shadow:
-    inset 0 1px 0 rgba(255, 241, 214, 0.2),
-    inset 0 -16px 24px rgba(0, 0, 0, 0.16),
-    0 14px 30px rgba(15, 23, 42, 0.24);
+    inset 0 1px 0 rgba(255, 255, 255, 0.58),
+    inset 0 -16px 24px rgba(120, 86, 41, 0.12),
+    0 14px 30px rgba(15, 23, 42, 0.16);
 }
 
 .badge-item.earned {
   background:
-    radial-gradient(circle at 16% 14%, rgba(255, 233, 179, 0.2), transparent 20%),
-    linear-gradient(180deg, #4c3921 0%, #342514 100%);
+    radial-gradient(circle at 16% 14%, rgba(255, 233, 179, 0.44), transparent 22%),
+    linear-gradient(180deg, #fbf0d8 0%, #ebd5a6 100%);
   border-color: rgba(199, 160, 89, 0.58);
   box-shadow:
-    inset 0 1px 0 rgba(255, 236, 194, 0.22),
-    inset 0 -18px 26px rgba(0, 0, 0, 0.18),
-    0 12px 28px rgba(60, 37, 11, 0.24),
+    inset 0 1px 0 rgba(255, 250, 227, 0.62),
+    inset 0 -18px 26px rgba(160, 115, 34, 0.12),
+    0 12px 28px rgba(60, 37, 11, 0.16),
     0 0 0 1px rgba(212, 175, 55, 0.18);
 }
 
 .badge-item.locked {
-  background: linear-gradient(180deg, #38332d 0%, #292522 100%);
-  border-color: rgba(124, 116, 103, 0.32);
+  background: linear-gradient(180deg, #ece7dd 0%, #dad2c5 100%);
+  border-color: rgba(124, 116, 103, 0.24);
   opacity: 0.92;
 }
 
@@ -677,7 +677,7 @@ button.is-loading::after {
 
 .badge-status {
   font-size: 0.68rem;
-  color: #d6cab3;
+  color: #765c35;
   display: inline-flex;
   align-items: center;
   width: fit-content;
@@ -685,33 +685,33 @@ button.is-loading::after {
   border-radius: 999px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  background: rgba(255, 248, 231, 0.08);
-  border: 1px solid rgba(216, 180, 118, 0.16);
+  background: rgba(255, 248, 231, 0.66);
+  border: 1px solid rgba(216, 180, 118, 0.22);
 }
 
 .badge-status-earned {
-  color: #f3ddb0;
-  background: linear-gradient(180deg, rgba(159, 114, 23, 0.34), rgba(97, 67, 17, 0.42));
+  color: #855d10;
+  background: linear-gradient(180deg, rgba(255, 239, 196, 0.92), rgba(240, 213, 136, 0.88));
   border-color: rgba(212, 175, 55, 0.26);
 }
 
 .badge-status-locked {
-  color: #c5b9a2;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.08));
+  color: #7a6b56;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(226, 217, 203, 0.9));
 }
 
 .badge-title {
   font-size: 0.9rem;
-  color: #f3e7cf;
+  color: #4e3820;
   letter-spacing: 0.02em;
   font-weight: 700;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.32);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.42);
 }
 
 .badge-description {
   display: none;
   font-size: 0.8rem;
-  color: #d2c2a7;
+  color: #6a5640;
   line-height: 1.55;
   margin-top: 4px;
 }
