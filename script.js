@@ -21,6 +21,9 @@ const goalNameText = document.getElementById('goalNameText');
 const goalProgressText = document.getElementById('goalProgressText');
 const goalTimeText = document.getElementById('goalTimeText');
 const goalProgressBar = document.getElementById('goalProgressBar');
+const openBadgesModalButton = document.getElementById('openBadgesModalButton');
+const badgesModal = document.getElementById('badgesModal');
+const badgesModalClose = document.getElementById('badgesModalClose');
 const badgesList = document.getElementById('badgesList');
 const badgeModal = document.getElementById('badgeModal');
 const badgeModalTitle = document.getElementById('badgeModalTitle');
@@ -33,6 +36,7 @@ const updateReloadButton = document.getElementById('updateReloadButton');
 const updateLaterButton = document.getElementById('updateLaterButton');
 const notificationToggle = document.getElementById('notificationToggle');
 const notificationStatus = document.getElementById('notificationStatus');
+const resultCard = document.querySelector('.result-card');
 const tabButtons = document.querySelectorAll('.tab-button');
 let lastPackCount = 0;
 let savingsChart = null;
@@ -479,13 +483,36 @@ function closeBadgeModal() {
   document.body.style.overflow = '';
 }
 
-function activateTab(targetId) {
+function openBadgesModal() {
+  if (!badgesModal) return;
+  badgesModal.classList.add('open');
+  badgesModal.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+  badgesModalClose?.focus();
+}
+
+function closeBadgesModal() {
+  if (!badgesModal) return;
+  badgesModal.classList.remove('open');
+  badgesModal.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+}
+
+function activateTab(targetId, options = {}) {
+  const { scrollToPanel = false } = options;
   tabButtons.forEach(button => {
     button.classList.toggle('active', button.dataset.tab === targetId);
+    button.setAttribute('aria-selected', button.dataset.tab === targetId ? 'true' : 'false');
   });
   document.querySelectorAll('.tab-panel').forEach(panel => {
     panel.classList.toggle('active', panel.id === targetId);
   });
+
+  if (scrollToPanel && resultCard) {
+    window.requestAnimationFrame(() => {
+      resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
 }
 
 function wait(ms) {
@@ -678,7 +705,7 @@ function calculateSavings() {
 async function handleCalculateButtonClick() {
   if (!calculateButton) {
     calculateSavings();
-    activateTab('detailsTab');
+    activateTab('detailsTab', { scrollToPanel: true });
     return;
   }
 
@@ -690,7 +717,7 @@ async function handleCalculateButtonClick() {
   await wait(650);
 
   calculateSavings();
-  activateTab('detailsTab');
+  activateTab('detailsTab', { scrollToPanel: true });
 
   calculateButton.classList.remove('is-loading');
   calculateButton.disabled = false;
@@ -916,6 +943,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   badgesList.addEventListener('click', event => {
     const badgeItem = event.target.closest('.badge-item');
     if (!badgeItem) return;
+    closeBadgesModal();
     const title = badgeItem.querySelector('.badge-title')?.textContent || '';
     const status = badgeItem.classList.contains('earned') ? 'Gagné' : 'À débloquer';
     const description = badgeItem.querySelector('.badge-description')?.textContent || '';
@@ -928,11 +956,20 @@ window.addEventListener('DOMContentLoaded', async () => {
       const badgeItem = event.target.closest('.badge-item');
       if (!badgeItem) return;
       event.preventDefault();
+      closeBadgesModal();
       const title = badgeItem.querySelector('.badge-title')?.textContent || '';
       const status = badgeItem.classList.contains('earned') ? 'Gagné' : 'À débloquer';
       const description = badgeItem.querySelector('.badge-description')?.textContent || '';
       const emoji = badgeItem.dataset.badgeEmblem || '✦';
       openBadgeModal(title, status, description, emoji);
+    }
+  });
+
+  openBadgesModalButton?.addEventListener('click', openBadgesModal);
+  badgesModalClose?.addEventListener('click', closeBadgesModal);
+  badgesModal?.addEventListener('click', event => {
+    if (event.target === badgesModal) {
+      closeBadgesModal();
     }
   });
 
@@ -964,6 +1001,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && badgeModal.classList.contains('open')) {
       closeBadgeModal();
+    }
+    if (event.key === 'Escape' && badgesModal?.classList.contains('open')) {
+      closeBadgesModal();
     }
     if (event.key === 'Escape' && updateModal?.classList.contains('open')) {
       closeUpdateModal();

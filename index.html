@@ -370,10 +370,9 @@ strong {
     </section>
 
     <section class="card result-card" aria-live="polite">
-      <h2>Économies estimées</h2>
-      <div class="tabs">
-        <button type="button" class="tab-button active" data-tab="detailsTab">Détails</button>
-        <button type="button" class="tab-button" data-tab="badgesTab">Badges</button>
+      <div class="result-card-head">
+        <h2>Économies estimées</h2>
+        <button id="openBadgesModalButton" type="button" class="ghost-button badges-open-button">Voir les badges</button>
       </div>
       <div class="tab-panels">
         <div id="detailsTab" class="tab-panel active">
@@ -415,14 +414,16 @@ strong {
             <canvas id="savingsChart"></canvas>
           </div>
         </div>
-        <div id="badgesTab" class="tab-panel">
-          <div class="badges-panel">
-            <h3>Badges</h3>
-            <div id="badgesList" class="badges-list">Aucun badge gagné pour le moment.</div>
-          </div>
-        </div>
       </div>
     </section>
+
+    <div id="badgesModal" class="badge-modal" aria-hidden="true" role="dialog" aria-modal="true">
+      <div class="badge-modal-panel badges-modal-panel" role="document">
+        <button id="badgesModalClose" class="badge-modal-close" type="button" aria-label="Fermer la fenêtre des badges">×</button>
+        <h3 class="badges-modal-title">Vos badges</h3>
+        <div id="badgesList" class="badges-list">Aucun badge gagné pour le moment.</div>
+      </div>
+    </div>
 
     <div id="badgeModal" class="badge-modal" aria-hidden="true" role="dialog" aria-modal="true">
       <div class="badge-modal-panel" role="document">

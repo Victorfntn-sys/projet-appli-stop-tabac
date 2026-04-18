@@ -302,6 +302,26 @@ button.is-loading::after {
   font-size: 1.05rem;
 }
 
+.result-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.result-card-head h2 {
+  margin: 0;
+}
+
+.badges-open-button {
+  margin-top: 0;
+  width: auto;
+  min-width: 150px;
+  border-radius: 14px;
+  padding: 10px 14px;
+}
+
 .tabs {
   display: flex;
   gap: 12px;
@@ -758,6 +778,18 @@ button.is-loading::after {
   padding: 24px;
   box-shadow: 0 30px 70px rgba(15, 23, 42, 0.22);
   border: 1px solid rgba(47, 124, 255, 0.12);
+}
+
+.badges-modal-panel {
+  width: min(100%, 560px);
+  max-height: min(80vh, 680px);
+  overflow: auto;
+}
+
+.badges-modal-title {
+  margin: 0 0 14px;
+  font-size: 1.15rem;
+  color: var(--primary);
 }
 
 .update-modal-kicker {
