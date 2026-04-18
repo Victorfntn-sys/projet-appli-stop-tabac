@@ -1,5 +1,10 @@
 const locale = 'fr-FR';
 const STORAGE_QUIT_DATE = 'stop-smoking-quitDate';
+const STORAGE_CIGARETTES_PER_DAY = 'stop-smoking-cigarettesPerDay';
+const STORAGE_PRICE_PER_PACK = 'stop-smoking-pricePerPack';
+const STORAGE_CIGARETTES_PER_PACK = 'stop-smoking-cigarettesPerPack';
+const STORAGE_GOAL_NAME = 'stop-smoking-goalName';
+const STORAGE_GOAL_AMOUNT = 'stop-smoking-goalAmount';
 const STORAGE_LAST_PACK_COUNT = 'stop-smoking-lastPackCount';
 const STORAGE_TRACKING_STATE = 'stop-smoking-tracking-state';
 const STORAGE_LAST_PAUSE_ENCOURAGEMENT = 'stop-smoking-last-pause-encouragement';
@@ -98,6 +103,22 @@ function getStoredQuitDate() {
 function saveQuitDate(value) {
   try {
     localStorage.setItem(STORAGE_QUIT_DATE, value);
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function getStoredFieldValue(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function saveFieldValue(key, value) {
+  try {
+    localStorage.setItem(key, value);
   } catch {
     // ignore storage errors
   }
@@ -877,19 +898,31 @@ async function sendNotification(message) {
 pricePerPack.addEventListener('input', () => {
   const value = pricePerPack.value.replace(/[^0-9,]/g, '');
   pricePerPack.value = value;
+  saveFieldValue(STORAGE_PRICE_PER_PACK, value);
   calculateSavings();
 });
 
-goalNameInput.addEventListener('input', calculateSavings);
+goalNameInput.addEventListener('input', () => {
+  saveFieldValue(STORAGE_GOAL_NAME, goalNameInput.value);
+  calculateSavings();
+});
 
 goalAmountInput.addEventListener('input', () => {
   const value = goalAmountInput.value.replace(/[^0-9,]/g, '');
   goalAmountInput.value = value;
+  saveFieldValue(STORAGE_GOAL_AMOUNT, value);
   calculateSavings();
 });
 
-cigarettesPerDay.addEventListener('input', calculateSavings);
-cigarettesPerPack.addEventListener('input', calculateSavings);
+cigarettesPerDay.addEventListener('input', () => {
+  saveFieldValue(STORAGE_CIGARETTES_PER_DAY, cigarettesPerDay.value);
+  calculateSavings();
+});
+
+cigarettesPerPack.addEventListener('input', () => {
+  saveFieldValue(STORAGE_CIGARETTES_PER_PACK, cigarettesPerPack.value);
+  calculateSavings();
+});
 calculateButton.addEventListener('click', handleCalculateButtonClick);
 pauseToggleButton.addEventListener('click', togglePauseTracking);
 
@@ -898,6 +931,32 @@ window.addEventListener('DOMContentLoaded', async () => {
   await registerServiceWorker();
   notificationsEnabled = getStoredNotificationsEnabled();
   const storedDate = getStoredQuitDate();
+  const storedCigarettesPerDay = getStoredFieldValue(STORAGE_CIGARETTES_PER_DAY);
+  const storedPricePerPack = getStoredFieldValue(STORAGE_PRICE_PER_PACK);
+  const storedCigarettesPerPack = getStoredFieldValue(STORAGE_CIGARETTES_PER_PACK);
+  const storedGoalName = getStoredFieldValue(STORAGE_GOAL_NAME);
+  const storedGoalAmount = getStoredFieldValue(STORAGE_GOAL_AMOUNT);
+
+  if (storedCigarettesPerDay !== null) {
+    cigarettesPerDay.value = storedCigarettesPerDay;
+  }
+
+  if (storedPricePerPack !== null) {
+    pricePerPack.value = storedPricePerPack;
+  }
+
+  if (storedCigarettesPerPack !== null) {
+    cigarettesPerPack.value = storedCigarettesPerPack;
+  }
+
+  if (storedGoalName !== null) {
+    goalNameInput.value = storedGoalName;
+  }
+
+  if (storedGoalAmount !== null) {
+    goalAmountInput.value = storedGoalAmount;
+  }
+
   quitDate.value = storedDate || today.toISOString().split('T')[0];
   lastPackCount = getStoredLastPackCount();
   trackingState = getStoredTrackingState();
