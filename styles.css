@@ -782,12 +782,33 @@ button.is-loading::after {
 .badges-modal-panel {
   width: min(100%, 560px);
   max-height: min(80vh, 680px);
-  overflow: auto;
-  padding-top: 60px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.badges-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 14px;
+  flex-shrink: 0;
+}
+
+.badges-modal-header .badge-modal-close {
+  position: static;
+  flex-shrink: 0;
+}
+
+.badges-list-scroll {
+  overflow-y: auto;
+  padding: 0 24px 22px;
+  flex: 1;
 }
 
 .badges-modal-title {
-  margin: 0 0 14px;
+  margin: 0;
   font-size: 1.15rem;
   color: var(--primary);
 }

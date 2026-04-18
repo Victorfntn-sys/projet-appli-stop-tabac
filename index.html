@@ -471,9 +471,11 @@ strong {
 
     <div id="badgesModal" class="badge-modal" aria-hidden="true" role="dialog" aria-modal="true">
       <div class="badge-modal-panel badges-modal-panel" role="document">
-        <button id="badgesModalClose" class="badge-modal-close" type="button" aria-label="Fermer la fenêtre des badges">×</button>
-        <h3 class="badges-modal-title">Vos badges</h3>
-        <div id="badgesList" class="badges-list">Aucun badge gagné pour le moment.</div>
+        <div class="badges-modal-header">
+          <h3 class="badges-modal-title">Vos badges</h3>
+          <button id="badgesModalClose" class="badge-modal-close" type="button" aria-label="Fermer la fenêtre des badges">×</button>
+        </div>
+        <div id="badgesList" class="badges-list badges-list-scroll">Aucun badge gagné pour le moment.</div>
       </div>
     </div>
 
