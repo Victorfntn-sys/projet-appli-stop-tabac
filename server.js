@@ -10,6 +10,7 @@ const port = Number(process.env.PORT) || 3000;
 const dataDir = path.join(__dirname, 'data');
 const dataFile = path.join(dataDir, 'subscriptions.json');
 const feedbackFile = path.join(dataDir, 'feedback.json');
+const userStatesCsvFile = path.join(dataDir, 'user-states.csv');
 const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || '';
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '';
 const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:contact@example.com';
@@ -37,6 +38,33 @@ async function ensureFeedbackFile() {
     await fs.access(feedbackFile);
   } catch {
     await fs.writeFile(feedbackFile, '[]', 'utf8');
+  }
+}
+
+async function ensureUserStatesCsvFile() {
+  await fs.mkdir(dataDir, { recursive: true });
+  try {
+    await fs.access(userStatesCsvFile);
+  } catch {
+    const header = [
+      'createdAt',
+      'clientId',
+      'quitDate',
+      'cigsPerDay',
+      'cigsPerPack',
+      'pricePerPack',
+      'goalName',
+      'goalAmount',
+      'isPaused',
+      'pausedDaysTotal',
+      'daysWithoutSmoking',
+      'savedCigarettes',
+      'savedMoney',
+      'dailyCost',
+      'source',
+      'userAgent',
+    ].join(',');
+    await fs.writeFile(userStatesCsvFile, `${header}\n`, 'utf8');
   }
 }
 
@@ -74,6 +102,37 @@ async function writeFeedbackEntries(entries) {
 
 function getSubscriptionId(subscription) {
   return subscription?.endpoint || '';
+}
+
+function csvEscape(value) {
+  if (value === null || value === undefined) {
+    return '""';
+  }
+  const stringValue = String(value).replace(/"/g, '""');
+  return `"${stringValue}"`;
+}
+
+async function appendUserStateCsvRow(entry) {
+  await ensureUserStatesCsvFile();
+  const row = [
+    entry.createdAt,
+    entry.clientId,
+    entry.quitDate,
+    entry.cigsPerDay,
+    entry.cigsPerPack,
+    entry.pricePerPack,
+    entry.goalName,
+    entry.goalAmount,
+    entry.isPaused,
+    entry.pausedDaysTotal,
+    entry.daysWithoutSmoking,
+    entry.savedCigarettes,
+    entry.savedMoney,
+    entry.dailyCost,
+    entry.source,
+    entry.userAgent,
+  ].map(csvEscape).join(',');
+  await fs.appendFile(userStatesCsvFile, `${row}\n`, 'utf8');
 }
 
 function getTodayIso() {
@@ -304,11 +363,45 @@ app.post('/api/feedback', async (req, res) => {
   }
 });
 
+app.post('/api/user-state', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const entry = {
+      createdAt: new Date().toISOString(),
+      clientId: typeof body.clientId === 'string' ? body.clientId.trim().slice(0, 80) : '',
+      quitDate: typeof body.quitDate === 'string' ? body.quitDate.trim().slice(0, 40) : '',
+      cigsPerDay: Number(body.cigsPerDay) || 0,
+      cigsPerPack: Number(body.cigsPerPack) || 0,
+      pricePerPack: Number(body.pricePerPack) || 0,
+      goalName: typeof body.goalName === 'string' ? body.goalName.trim().slice(0, 150) : '',
+      goalAmount: Number(body.goalAmount) || 0,
+      isPaused: Boolean(body.isPaused),
+      pausedDaysTotal: Number(body.pausedDaysTotal) || 0,
+      daysWithoutSmoking: Number(body.daysWithoutSmoking) || 0,
+      savedCigarettes: Number(body.savedCigarettes) || 0,
+      savedMoney: Number(body.savedMoney) || 0,
+      dailyCost: Number(body.dailyCost) || 0,
+      source: req.get('origin') || req.get('host') || '',
+      userAgent: req.get('user-agent') || '',
+    };
+
+    if (!entry.clientId) {
+      res.status(400).json({ error: 'missing-client-id' });
+      return;
+    }
+
+    await appendUserStateCsvRow(entry);
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'user-state-save-failed' });
+  }
+});
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-ensureDataFile().then(() => {
+Promise.all([ensureDataFile(), ensureFeedbackFile(), ensureUserStatesCsvFile()]).then(() => {
   app.listen(port, () => {
     console.log(`Server running on http://localhost:${port}`);
   });

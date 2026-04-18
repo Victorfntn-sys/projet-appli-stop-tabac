@@ -9,6 +9,7 @@ const STORAGE_LAST_PACK_COUNT = 'stop-smoking-lastPackCount';
 const STORAGE_TRACKING_STATE = 'stop-smoking-tracking-state';
 const STORAGE_LAST_PAUSE_ENCOURAGEMENT = 'stop-smoking-last-pause-encouragement';
 const STORAGE_NOTIFICATIONS_ENABLED = 'stop-smoking-notifications-enabled';
+const STORAGE_CLIENT_ID = 'stop-smoking-clientId';
 const cigarettesPerDay = document.getElementById('cigarettesPerDay');
 const pricePerPack = document.getElementById('pricePerPack');
 const cigarettesPerPack = document.getElementById('cigarettesPerPack');
@@ -59,6 +60,8 @@ let waitingServiceWorker = null;
 let deferredInstallPrompt = null;
 let pushSubscriptionEndpoint = '';
 let notificationsEnabled = false;
+let userExcelSyncTimeoutId = null;
+let lastUserExcelPayloadKey = '';
 const PUSH_STATE_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 const SERVICE_WORKER_UPDATE_CHECK_INTERVAL_MS = 60 * 1000;
 let trackingState = {
@@ -146,6 +149,24 @@ function saveFieldValue(key, value) {
     // ignore storage errors
   }
 }
+
+function getOrCreateClientId() {
+  try {
+    const existing = localStorage.getItem(STORAGE_CLIENT_ID);
+    if (existing) {
+      return existing;
+    }
+    const nextId = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem(STORAGE_CLIENT_ID, nextId);
+    return nextId;
+  } catch {
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
+
+const clientId = getOrCreateClientId();
 
 function getStoredLastPackCount() {
   try {
@@ -287,10 +308,13 @@ function urlBase64ToUint8Array(base64String) {
 
 function getCurrentUserState() {
   return {
+    clientId,
     cigsPerDay: Number(cigarettesPerDay.value) || 0,
     pricePerPack: parseFrenchNumber(pricePerPack.value),
     cigsPerPack: Number(cigarettesPerPack.value) || 1,
     quitDate: quitDate.value,
+    goalName: goalNameInput.value || '',
+    goalAmount: parseFrenchNumber(goalAmountInput.value),
     isPaused: trackingState.isPaused,
     pauseStartedAt: trackingState.pauseStartedAt,
     pausedDaysTotal: trackingState.pausedDaysTotal,
@@ -350,6 +374,38 @@ async function syncPushState() {
   } catch (error) {
     console.warn('Synchronisation push impossible', error);
   }
+}
+
+function queueUserStateExcelSync(metrics) {
+  const payload = {
+    ...getCurrentUserState(),
+    daysWithoutSmoking: Number(metrics.daysWithoutSmoking) || 0,
+    savedMoney: Number(metrics.savedMoney) || 0,
+    savedCigarettes: Number(metrics.savedCigarettes) || 0,
+    dailyCost: Number(metrics.dailyCost) || 0,
+  };
+
+  const payloadKey = JSON.stringify(payload);
+  if (payloadKey === lastUserExcelPayloadKey) {
+    return;
+  }
+
+  if (userExcelSyncTimeoutId) {
+    clearTimeout(userExcelSyncTimeoutId);
+  }
+
+  userExcelSyncTimeoutId = window.setTimeout(async () => {
+    try {
+      await fetch('/api/user-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      lastUserExcelPayloadKey = payloadKey;
+    } catch (error) {
+      console.warn('Export Excel impossible', error);
+    }
+  }, 700);
 }
 
 async function unsubscribeFromPushNotifications() {
@@ -698,6 +754,12 @@ function calculateSavings() {
   updateBadges(days, savedMoney, goalTarget);
   createSavingsProjection(days, dailyCost, savedMoney);
   syncPushState();
+  queueUserStateExcelSync({
+    daysWithoutSmoking: days,
+    savedMoney,
+    savedCigarettes,
+    dailyCost,
+  });
 
   const packsSaved = cigsPerPack > 0 ? Math.floor(savedCigarettes / cigsPerPack) : 0;
   const newPacks = packsSaved - lastPackCount;

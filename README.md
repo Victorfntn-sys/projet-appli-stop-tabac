@@ -13,6 +13,7 @@ Application web de suivi d'arret du tabac avec objectifs, badges, graphique, mod
 - fondation PWA installable
 - backend Web Push pour notifications meme hors page
 - collecte d'idees d'amelioration via un formulaire en bas de page
+- export automatique des donnees utilisateur dans un fichier CSV compatible Excel
 
 ## Prerequis
 
@@ -66,6 +67,7 @@ Le backend envoie :
 - les encouragements quotidiens quand le suivi est en pause
 - les alertes quand de nouveaux paquets economises sont detectes a partir de l'etat synchronise
 - les retours utilisateurs envoyes depuis l'interface sont stockes dans `data/feedback.json`
+- les etats utilisateur (economies, consommation, objectif) sont exportes dans `data/user-states.csv`
 
 Le traitement planifie tourne toutes les minutes dans `server.js`.
 
@@ -145,6 +147,7 @@ FEEDBACK_WEBHOOK_URL=
 - `server.js` : backend Express + Web Push
 - `data/subscriptions.json` : stockage local des souscriptions push
 - `data/feedback.json` : stockage local des idees d'amelioration
+- `data/user-states.csv` : export des informations utilisateur lisible dans Excel
 
 ## Limites techniques
 
