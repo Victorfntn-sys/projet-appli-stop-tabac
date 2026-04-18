@@ -527,16 +527,27 @@ button.is-loading::after {
 .badge-icon-emblem {
   position: relative;
   z-index: 2;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 0.86rem;
+  font-family: "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  font-size: 1.08rem;
   font-weight: 700;
   line-height: 1;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.01em;
+  font-variant-numeric: lining-nums tabular-nums;
   color: rgba(255, 255, 255, 0.96);
   text-shadow:
     0 1px 0 rgba(255, 255, 255, 0.14),
-    0 2px 4px rgba(15, 23, 42, 0.28);
+    0 2px 4px rgba(15, 23, 42, 0.34);
   filter: none;
+}
+
+.badge-icon-emblem.is-wide {
+  font-size: 0.88rem;
+  letter-spacing: 0;
+}
+
+.badge-icon-emblem.is-xwide {
+  font-size: 0.74rem;
+  letter-spacing: -0.01em;
 }
 
 .badge-finish-bronze {

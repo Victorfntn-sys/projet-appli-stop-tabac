@@ -84,23 +84,23 @@ const healthMilestones = [
 ];
 
 const badgeDefinitions = [
-  { id: 'jour-1', title: '1 jour', description: 'Vous avez commencé votre arrêt du tabac.', emblem: 'I', finish: 'bronze', condition: ({ days }) => days >= 1 },
-  { id: 'jour-3', title: '3 jours', description: 'Trois jours sans tabac, excellent départ.', emblem: 'III', finish: 'bronze', condition: ({ days }) => days >= 3 },
-  { id: 'jour-7', title: '7 jours', description: 'Une semaine complète sans tabac.', emblem: 'VII', finish: 'steel', condition: ({ days }) => days >= 7 },
-  { id: 'jour-14', title: '14 jours', description: 'Deux semaines de constance.', emblem: 'XIV', finish: 'steel', condition: ({ days }) => days >= 14 },
-  { id: 'jour-30', title: '1 mois', description: 'Vous avez tenu 30 jours.', emblem: 'XXX', finish: 'gold', condition: ({ days }) => days >= 30 },
-  { id: 'jour-90', title: '3 mois', description: 'Cap des 90 jours atteint.', emblem: 'XC', finish: 'gold', condition: ({ days }) => days >= 90 },
-  { id: 'jour-180', title: '6 mois', description: 'Six mois de progression continue.', emblem: 'VI', finish: 'royal', condition: ({ days }) => days >= 180 },
+  { id: 'jour-1', title: '1 jour', description: 'Vous avez commencé votre arrêt du tabac.', emblem: '1', finish: 'bronze', condition: ({ days }) => days >= 1 },
+  { id: 'jour-3', title: '3 jours', description: 'Trois jours sans tabac, excellent départ.', emblem: '3', finish: 'bronze', condition: ({ days }) => days >= 3 },
+  { id: 'jour-7', title: '7 jours', description: 'Une semaine complète sans tabac.', emblem: '7', finish: 'steel', condition: ({ days }) => days >= 7 },
+  { id: 'jour-14', title: '14 jours', description: 'Deux semaines de constance.', emblem: '14', finish: 'steel', condition: ({ days }) => days >= 14 },
+  { id: 'jour-30', title: '1 mois', description: 'Vous avez tenu 30 jours.', emblem: '30', finish: 'gold', condition: ({ days }) => days >= 30 },
+  { id: 'jour-90', title: '3 mois', description: 'Cap des 90 jours atteint.', emblem: '90', finish: 'gold', condition: ({ days }) => days >= 90 },
+  { id: 'jour-180', title: '6 mois', description: 'Six mois de progression continue.', emblem: '180', finish: 'royal', condition: ({ days }) => days >= 180 },
   { id: 'jour-365', title: '1 an', description: 'Une année complète sans tabac.', emblem: '365', finish: 'royal', condition: ({ days }) => days >= 365 },
 
-  { id: 'euro-50', title: '50 €', description: 'Premières économies visibles.', emblem: 'L', finish: 'bronze', condition: ({ savedMoney }) => savedMoney >= 50 },
-  { id: 'euro-100', title: '100 €', description: 'Première grosse économie réalisée.', emblem: 'C', finish: 'bronze', condition: ({ savedMoney }) => savedMoney >= 100 },
-  { id: 'euro-250', title: '250 €', description: 'Un vrai palier financier atteint.', emblem: 'CCL', finish: 'steel', condition: ({ savedMoney }) => savedMoney >= 250 },
-  { id: 'euro-500', title: '500 €', description: 'Un demi-millier économisé.', emblem: 'D', finish: 'gold', condition: ({ savedMoney }) => savedMoney >= 500 },
-  { id: 'euro-1000', title: '1000 €', description: 'Le cap des 1000 € est franchi.', emblem: 'M', finish: 'royal', condition: ({ savedMoney }) => savedMoney >= 1000 },
+  { id: 'euro-50', title: '50 €', description: 'Premières économies visibles.', emblem: '50', finish: 'bronze', condition: ({ savedMoney }) => savedMoney >= 50 },
+  { id: 'euro-100', title: '100 €', description: 'Première grosse économie réalisée.', emblem: '100', finish: 'bronze', condition: ({ savedMoney }) => savedMoney >= 100 },
+  { id: 'euro-250', title: '250 €', description: 'Un vrai palier financier atteint.', emblem: '250', finish: 'steel', condition: ({ savedMoney }) => savedMoney >= 250 },
+  { id: 'euro-500', title: '500 €', description: 'Un demi-millier économisé.', emblem: '500', finish: 'gold', condition: ({ savedMoney }) => savedMoney >= 500 },
+  { id: 'euro-1000', title: '1000 €', description: 'Le cap des 1000 € est franchi.', emblem: '1000', finish: 'royal', condition: ({ savedMoney }) => savedMoney >= 1000 },
 
-  { id: 'objectif-50', title: 'Objectif 50 %', description: 'Vous avez atteint la moitié de votre objectif.', emblem: '1/2', finish: 'steel', condition: ({ savedMoney, goalTarget }) => goalTarget > 0 && savedMoney >= goalTarget * 0.5 },
-  { id: 'objectif-100', title: 'Objectif atteint', description: 'Votre objectif est atteint.', emblem: '✓', finish: 'royal', condition: ({ savedMoney, goalTarget }) => goalTarget > 0 && savedMoney >= goalTarget }
+  { id: 'objectif-50', title: 'Objectif 50 %', description: 'Vous avez atteint la moitié de votre objectif.', emblem: '50%', finish: 'steel', condition: ({ savedMoney, goalTarget }) => goalTarget > 0 && savedMoney >= goalTarget * 0.5 },
+  { id: 'objectif-100', title: 'Objectif atteint', description: 'Votre objectif est atteint.', emblem: '100%', finish: 'royal', condition: ({ savedMoney, goalTarget }) => goalTarget > 0 && savedMoney >= goalTarget }
 ];
 
 function getStoredQuitDate() {
@@ -479,7 +479,7 @@ function updateBadges(days, savedMoney, goalTarget) {
   badgesList.innerHTML = badges.map(badge => `
     <div class="badge-item ${badge.earned ? 'earned' : 'locked'}" data-badge-id="${badge.id}" data-badge-emblem="${badge.emblem}" data-badge-finish="${badge.finish}" tabindex="0" role="button" aria-label="${badge.title} - ${badge.earned ? 'Gagné' : 'À débloquer'}">
       <div class="badge-icon badge-finish-${badge.finish}">
-        <span class="badge-icon-emblem">${badge.earned ? badge.emblem : '•'}</span>
+        <span class="badge-icon-emblem ${badge.emblem.length >= 4 ? 'is-xwide' : badge.emblem.length >= 3 ? 'is-wide' : ''}">${badge.earned ? badge.emblem : '•'}</span>
       </div>
       <div class="badge-info">
         <strong class="badge-title">${badge.title}</strong>
