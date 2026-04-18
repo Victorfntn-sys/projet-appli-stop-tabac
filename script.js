@@ -3,6 +3,7 @@ const STORAGE_QUIT_DATE = 'stop-smoking-quitDate';
 const STORAGE_LAST_PACK_COUNT = 'stop-smoking-lastPackCount';
 const STORAGE_TRACKING_STATE = 'stop-smoking-tracking-state';
 const STORAGE_LAST_PAUSE_ENCOURAGEMENT = 'stop-smoking-last-pause-encouragement';
+const STORAGE_NOTIFICATIONS_ENABLED = 'stop-smoking-notifications-enabled';
 const cigarettesPerDay = document.getElementById('cigarettesPerDay');
 const pricePerPack = document.getElementById('pricePerPack');
 const cigarettesPerPack = document.getElementById('cigarettesPerPack');
@@ -42,6 +43,7 @@ let serviceWorkerRegistration = null;
 let waitingServiceWorker = null;
 let deferredInstallPrompt = null;
 let pushSubscriptionEndpoint = '';
+let notificationsEnabled = false;
 const PUSH_STATE_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 const SERVICE_WORKER_UPDATE_CHECK_INTERVAL_MS = 60 * 1000;
 let trackingState = {
@@ -159,6 +161,26 @@ function saveLastPauseEncouragement(value) {
   }
 }
 
+function getStoredNotificationsEnabled() {
+  try {
+    const storedValue = localStorage.getItem(STORAGE_NOTIFICATIONS_ENABLED);
+    if (storedValue === null) {
+      return 'Notification' in window && Notification.permission === 'granted';
+    }
+    return storedValue === 'true';
+  } catch {
+    return 'Notification' in window && Notification.permission === 'granted';
+  }
+}
+
+function saveNotificationsEnabled(value) {
+  try {
+    localStorage.setItem(STORAGE_NOTIFICATIONS_ENABLED, String(value));
+  } catch {
+    // ignore storage errors
+  }
+}
+
 function getPauseEncouragementMessage(dateIso) {
   const hash = Array.from(dateIso).reduce((sum, char) => sum + char.charCodeAt(0), 0);
   return pauseEncouragementMessages[hash % pauseEncouragementMessages.length];
@@ -193,7 +215,7 @@ async function fetchPushPublicKey() {
 }
 
 async function subscribeToPushNotifications() {
-  if (!serviceWorkerRegistration || Notification.permission !== 'granted') {
+  if (!notificationsEnabled || !serviceWorkerRegistration || Notification.permission !== 'granted') {
     return null;
   }
   try {
@@ -224,7 +246,7 @@ async function subscribeToPushNotifications() {
 }
 
 async function syncPushState() {
-  if (!pushSubscriptionEndpoint || Notification.permission !== 'granted') {
+  if (!notificationsEnabled || !pushSubscriptionEndpoint || Notification.permission !== 'granted') {
     return;
   }
   try {
@@ -260,6 +282,9 @@ async function unsubscribeFromPushNotifications() {
 }
 
 function maybeSendPauseEncouragement() {
+  if (!notificationsEnabled) {
+    return;
+  }
   if (!trackingState.isPaused) {
     return;
   }
@@ -644,6 +669,14 @@ function updateNotificationStatus(permission) {
     notificationToggle.disabled = true;
     return;
   }
+  if (!notificationsEnabled) {
+    notificationStatus.textContent = permission === 'denied'
+      ? 'Refusées par le navigateur et désactivées dans l’application.'
+      : 'Notifications désactivées dans l’application.';
+    notificationToggle.checked = false;
+    notificationToggle.disabled = false;
+    return;
+  }
   if (permission === 'granted') {
     notificationStatus.textContent = 'Notifications actives, y compris via le service worker si le push est configuré.';
     notificationToggle.checked = true;
@@ -664,8 +697,16 @@ function requestNotificationPermission() {
     updateNotificationStatus('unsupported');
     return;
   }
+  if (!notificationsEnabled) {
+    updateNotificationStatus(Notification.permission);
+    return;
+  }
   if (Notification.permission === 'default') {
     Notification.requestPermission().then(permission => {
+      if (permission !== 'granted') {
+        notificationsEnabled = false;
+        saveNotificationsEnabled(false);
+      }
       updateNotificationStatus(permission);
       if (permission === 'granted') {
         subscribeToPushNotifications().then(syncPushState);
@@ -747,17 +788,21 @@ async function registerServiceWorker() {
 
 notificationToggle.addEventListener('change', () => {
   if (notificationToggle.checked) {
+    notificationsEnabled = true;
+    saveNotificationsEnabled(true);
     requestNotificationPermission();
     subscribeToPushNotifications().then(syncPushState);
     maybeSendPauseEncouragement();
   } else {
+    notificationsEnabled = false;
+    saveNotificationsEnabled(false);
     updateNotificationStatus(Notification.permission);
     unsubscribeFromPushNotifications();
   }
 });
 
 async function sendNotification(message) {
-  if (!('Notification' in window) || Notification.permission !== 'granted') {
+  if (!notificationsEnabled || !('Notification' in window) || Notification.permission !== 'granted') {
     return;
   }
   try {
@@ -799,16 +844,19 @@ pauseToggleButton.addEventListener('click', togglePauseTracking);
 window.addEventListener('DOMContentLoaded', async () => {
   const today = new Date();
   await registerServiceWorker();
+  notificationsEnabled = getStoredNotificationsEnabled();
   const storedDate = getStoredQuitDate();
   quitDate.value = storedDate || today.toISOString().split('T')[0];
   lastPackCount = getStoredLastPackCount();
   trackingState = getStoredTrackingState();
   refreshTrackingUI(today);
   calculateSavings();
-  requestNotificationPermission();
-  if (Notification.permission === 'granted') {
+  updateNotificationStatus(Notification.permission);
+  if (notificationsEnabled && Notification.permission === 'granted') {
     await subscribeToPushNotifications();
     await syncPushState();
+  } else if (!notificationsEnabled) {
+    await unsubscribeFromPushNotifications();
   }
   startPushStateSyncScheduler();
   startPauseReminderScheduler();
@@ -823,7 +871,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   });
 
   window.addEventListener('online', async () => {
-    if (Notification.permission === 'granted') {
+    if (notificationsEnabled && Notification.permission === 'granted') {
       await subscribeToPushNotifications();
       await syncPushState();
     }
