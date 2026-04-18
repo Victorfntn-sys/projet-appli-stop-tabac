@@ -84,12 +84,12 @@ const healthMilestones = [
 ];
 
 const badgeDefinitions = [
-  { id: 'debut', title: 'Premier pas', description: 'Vous avez commencé votre arrêt du tabac.', emblem: '1', finish: 'bronze', condition: ({ days }) => days >= 1 },
-  { id: 'semaine', title: '7 jours', description: 'Vous avez tenu une semaine sans tabac.', emblem: '7', finish: 'steel', condition: ({ days }) => days >= 7 },
-  { id: 'mois', title: '1 mois', description: 'Vous êtes parti pour du long terme.', emblem: '30', finish: 'gold', condition: ({ days }) => days >= 30 },
-  { id: 'economies-100', title: '100 €', description: 'Première grosse économie réalisée.', emblem: '100', finish: 'bronze', condition: ({ savedMoney }) => savedMoney >= 100 },
-  { id: 'economies-500', title: '500 €', description: 'Un demi-millier économisé.', emblem: '500', finish: 'gold', condition: ({ savedMoney }) => savedMoney >= 500 },
-  { id: 'objectif', title: 'Objectif', description: 'Votre objectif est atteint.', emblem: 'OK', finish: 'royal', condition: ({ savedMoney, goalTarget }) => goalTarget > 0 && savedMoney >= goalTarget }
+  { id: 'debut', title: 'Premier pas', description: 'Vous avez commencé votre arrêt du tabac.', emblem: 'I', finish: 'bronze', condition: ({ days }) => days >= 1 },
+  { id: 'semaine', title: '7 jours', description: 'Vous avez tenu une semaine sans tabac.', emblem: 'VII', finish: 'steel', condition: ({ days }) => days >= 7 },
+  { id: 'mois', title: '1 mois', description: 'Vous êtes parti pour du long terme.', emblem: 'XXX', finish: 'gold', condition: ({ days }) => days >= 30 },
+  { id: 'economies-100', title: '100 €', description: 'Première grosse économie réalisée.', emblem: 'C', finish: 'bronze', condition: ({ savedMoney }) => savedMoney >= 100 },
+  { id: 'economies-500', title: '500 €', description: 'Un demi-millier économisé.', emblem: 'D', finish: 'gold', condition: ({ savedMoney }) => savedMoney >= 500 },
+  { id: 'objectif', title: 'Objectif', description: 'Votre objectif est atteint.', emblem: '✓', finish: 'royal', condition: ({ savedMoney, goalTarget }) => goalTarget > 0 && savedMoney >= goalTarget }
 ];
 
 function getStoredQuitDate() {
