@@ -439,16 +439,31 @@ function getGoalTimeText(remainingMoney, dailyCost) {
   if (daysLeft <= 0) {
     return 'Objectif atteint !';
   }
-  const weeks = Math.floor(daysLeft / 7);
-  const days = daysLeft % 7;
+
+  // Approximation calendar: 1 an = 365 jours, 1 mois = 30 jours.
+  let remainingDays = daysLeft;
+  const years = Math.floor(remainingDays / 365);
+  remainingDays %= 365;
+  const months = Math.floor(remainingDays / 30);
+  remainingDays %= 30;
+  const weeks = Math.floor(remainingDays / 7);
+  const days = remainingDays % 7;
+
   const parts = [];
+  if (years > 0) {
+    parts.push(`${years} an${years > 1 ? 's' : ''}`);
+  }
+  if (months > 0) {
+    parts.push(`${months} mois`);
+  }
   if (weeks > 0) {
-    parts.push(`${weeks} sem.`);
+    parts.push(`${weeks} semaine${weeks > 1 ? 's' : ''}`);
   }
   if (days > 0) {
-    parts.push(`${days} j.`);
+    parts.push(`${days} jour${days > 1 ? 's' : ''}`);
   }
-  return parts.length ? parts.join(' ') : 'Moins d\'une journée';
+
+  return parts.length ? parts.join(' ') : 'Moins d\'un jour';
 }
 
 function updateGoalDisplay(savedMoney, dailyCost) {
