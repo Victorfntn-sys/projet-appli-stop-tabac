@@ -865,6 +865,97 @@ button.is-loading::after {
   display: flex;
 }
 
+.launch-ad-modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(16, 53, 55, 0.48);
+  backdrop-filter: blur(6px);
+  z-index: 45;
+  padding: 24px;
+}
+
+.launch-ad-modal.open {
+  display: flex;
+}
+
+.launch-ad-panel {
+  position: relative;
+  width: min(100%, 460px);
+  border-radius: 26px;
+  padding: 22px;
+  border: 1px solid rgba(29, 143, 132, 0.22);
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(29, 143, 132, 0.12), transparent 55%),
+    #ffffff;
+  box-shadow: 0 30px 70px rgba(15, 23, 42, 0.24);
+}
+
+.launch-ad-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 999px;
+  background: #eef8f6;
+  color: #0f172a;
+  font-size: 1.25rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+}
+
+.launch-ad-kicker {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.launch-ad-title {
+  margin: 10px 0 0;
+  font-size: 1.25rem;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.launch-ad-text {
+  margin: 10px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.launch-ad-slot {
+  margin-top: 14px;
+  min-height: 180px;
+  border-radius: 18px;
+  border: 1px dashed rgba(29, 143, 132, 0.45);
+  background:
+    linear-gradient(135deg, rgba(29, 143, 132, 0.08), rgba(38, 168, 153, 0.14)),
+    #f7fffd;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  font-weight: 700;
+  color: #145d55;
+  padding: 16px;
+}
+
+.launch-ad-countdown {
+  margin: 10px 0 0;
+  font-size: 0.9rem;
+  color: #4b5f66;
+}
+
 .update-modal-panel {
   width: min(100%, 420px);
   background: #ffffff;
@@ -1092,6 +1183,12 @@ strong {
     max-width: 420px;
     padding: 22px 18px;
   }
+
+  .launch-ad-panel {
+    width: 100%;
+    max-width: 460px;
+    padding: 20px 16px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1182,6 +1279,14 @@ strong {
 
   .badge-modal-text h3 {
     font-size: 1.15rem;
+  }
+
+  .launch-ad-title {
+    font-size: 1.12rem;
+  }
+
+  .launch-ad-slot {
+    min-height: 160px;
   }
 
   .links-card ul {

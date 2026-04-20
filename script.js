@@ -10,6 +10,9 @@ const STORAGE_TRACKING_STATE = 'stop-smoking-tracking-state';
 const STORAGE_LAST_PAUSE_ENCOURAGEMENT = 'stop-smoking-last-pause-encouragement';
 const STORAGE_NOTIFICATIONS_ENABLED = 'stop-smoking-notifications-enabled';
 const STORAGE_CLIENT_ID = 'stop-smoking-clientId';
+const STORAGE_IS_PREMIUM = 'stop-smoking-is-premium';
+const STORAGE_APP_OPEN_COUNT = 'stop-smoking-app-open-count';
+const STORAGE_LAST_LAUNCH_AD_AT = 'stop-smoking-last-launch-ad-at';
 const cigarettesPerDay = document.getElementById('cigarettesPerDay');
 const pricePerPack = document.getElementById('pricePerPack');
 const cigarettesPerPack = document.getElementById('cigarettesPerPack');
@@ -51,6 +54,12 @@ const feedbackForm = document.getElementById('feedbackForm');
 const feedbackMessage = document.getElementById('feedbackMessage');
 const feedbackContact = document.getElementById('feedbackContact');
 const feedbackStatus = document.getElementById('feedbackStatus');
+const launchAdModal = document.getElementById('launchAdModal');
+const launchAdClose = document.getElementById('launchAdClose');
+const launchAdCountdown = document.getElementById('launchAdCountdown');
+const launchAdSlot = document.getElementById('launchAdSlot');
+const ADMOB_APP_ID = 'ca-app-pub-4442230652158494~6410750898';
+const ADMOB_UNIT_ID = 'ca-app-pub-4442230652158494/1158424217';
 let lastPackCount = 0;
 let pauseReminderIntervalId = null;
 let pushStateSyncIntervalId = null;
@@ -62,8 +71,13 @@ let pushSubscriptionEndpoint = '';
 let notificationsEnabled = false;
 let userExcelSyncTimeoutId = null;
 let lastUserExcelPayloadKey = '';
+let launchAdAutoCloseTimeoutId = null;
+let launchAdCountdownIntervalId = null;
 const PUSH_STATE_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 const SERVICE_WORKER_UPDATE_CHECK_INTERVAL_MS = 60 * 1000;
+const LAUNCH_AD_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+const LAUNCH_AD_SHOW_EVERY_N_OPENS = 3;
+const LAUNCH_AD_AUTO_CLOSE_SECONDS = 5;
 let trackingState = {
   isPaused: false,
   pauseStartedAt: null,
@@ -247,6 +261,116 @@ function saveNotificationsEnabled(value) {
   } catch {
     // ignore storage errors
   }
+}
+
+function getStoredInteger(key, fallbackValue = 0) {
+  try {
+    const rawValue = localStorage.getItem(key);
+    if (rawValue === null) {
+      return fallbackValue;
+    }
+    const parsedValue = Number.parseInt(rawValue, 10);
+    return Number.isFinite(parsedValue) ? parsedValue : fallbackValue;
+  } catch {
+    return fallbackValue;
+  }
+}
+
+function saveInteger(key, value) {
+  try {
+    localStorage.setItem(key, String(value));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function isPremiumUser() {
+  try {
+    const rawValue = localStorage.getItem(STORAGE_IS_PREMIUM);
+    return rawValue === 'true' || rawValue === '1';
+  } catch {
+    return false;
+  }
+}
+
+function clearLaunchAdTimers() {
+  if (launchAdAutoCloseTimeoutId) {
+    clearTimeout(launchAdAutoCloseTimeoutId);
+    launchAdAutoCloseTimeoutId = null;
+  }
+  if (launchAdCountdownIntervalId) {
+    clearInterval(launchAdCountdownIntervalId);
+    launchAdCountdownIntervalId = null;
+  }
+}
+
+function closeLaunchAd() {
+  if (!launchAdModal) {
+    return;
+  }
+  clearLaunchAdTimers();
+  launchAdModal.classList.remove('open');
+  launchAdModal.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+}
+
+function openLaunchAd() {
+  if (!launchAdModal) {
+    return;
+  }
+
+  if (launchAdSlot) {
+    launchAdSlot.setAttribute('data-ad-provider', 'admob');
+    launchAdSlot.setAttribute('data-admob-app-id', ADMOB_APP_ID);
+    launchAdSlot.setAttribute('data-admob-unit-id', ADMOB_UNIT_ID);
+    launchAdSlot.textContent = `Bloc AdMob: ${ADMOB_APP_ID} / ${ADMOB_UNIT_ID}`;
+  }
+
+  saveInteger(STORAGE_LAST_LAUNCH_AD_AT, Date.now());
+  launchAdModal.classList.add('open');
+  launchAdModal.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+
+  let secondsLeft = LAUNCH_AD_AUTO_CLOSE_SECONDS;
+  if (launchAdCountdown) {
+    launchAdCountdown.textContent = `Fermeture automatique dans ${secondsLeft} s`;
+  }
+
+  clearLaunchAdTimers();
+  launchAdCountdownIntervalId = window.setInterval(() => {
+    secondsLeft -= 1;
+    if (launchAdCountdown) {
+      launchAdCountdown.textContent = secondsLeft > 0
+        ? `Fermeture automatique dans ${secondsLeft} s`
+        : 'Fermeture...';
+    }
+  }, 1000);
+
+  launchAdAutoCloseTimeoutId = window.setTimeout(() => {
+    closeLaunchAd();
+  }, LAUNCH_AD_AUTO_CLOSE_SECONDS * 1000);
+}
+
+function shouldShowLaunchAdOnStartup() {
+  if (!launchAdModal) {
+    return false;
+  }
+  if (isPremiumUser()) {
+    return false;
+  }
+
+  const nextOpenCount = getStoredInteger(STORAGE_APP_OPEN_COUNT, 0) + 1;
+  saveInteger(STORAGE_APP_OPEN_COUNT, nextOpenCount);
+  if (nextOpenCount % LAUNCH_AD_SHOW_EVERY_N_OPENS !== 0) {
+    return false;
+  }
+
+  const lastShownAt = getStoredInteger(STORAGE_LAST_LAUNCH_AD_AT, 0);
+  if (lastShownAt > 0 && (Date.now() - lastShownAt) < LAUNCH_AD_COOLDOWN_MS) {
+    return false;
+  }
+
+  return true;
 }
 
 function getPauseEncouragementMessage(dateIso) {
@@ -995,6 +1119,12 @@ cigarettesPerPack.addEventListener('input', () => {
 calculateButton.addEventListener('click', handleCalculateButtonClick);
 pauseToggleButton.addEventListener('click', togglePauseTracking);
 feedbackForm?.addEventListener('submit', handleFeedbackSubmit);
+launchAdClose?.addEventListener('click', closeLaunchAd);
+launchAdModal?.addEventListener('click', event => {
+  if (event.target === launchAdModal) {
+    closeLaunchAd();
+  }
+});
 
 window.addEventListener('DOMContentLoaded', async () => {
   const startedAt = performance.now();
@@ -1128,6 +1258,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   });
 
   document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && launchAdModal?.classList.contains('open')) {
+      closeLaunchAd();
+    }
     if (event.key === 'Escape' && badgeModal.classList.contains('open')) {
       closeBadgeModal();
     }
@@ -1160,6 +1293,12 @@ window.addEventListener('DOMContentLoaded', async () => {
     await wait(minimumVisibleMs - elapsed);
   }
   await hideAppLoadingScreen();
+
+  if (shouldShowLaunchAdOnStartup()) {
+    window.setTimeout(() => {
+      openLaunchAd();
+    }, 220);
+  }
 
 });
 
