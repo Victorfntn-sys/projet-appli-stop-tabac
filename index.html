@@ -252,6 +252,20 @@ input:focus {
   line-height: 1.45;
 }
 
+.backup-status {
+  margin-top: 8px;
+  font-size: 0.86rem;
+  color: #3f6f6a;
+}
+
+.backup-status.error {
+  color: #9b1c1c;
+}
+
+.backup-status.success {
+  color: #166534;
+}
+
 .notification-status {
   color: var(--muted);
   font-size: 0.9rem;
@@ -687,6 +701,7 @@ strong {
         <button id="pauseToggleButton" type="button" class="secondary-button">Mettre en pause</button>
       </div>
       <p id="trackingStatus" class="tracking-status">Suivi actif.</p>
+      <p id="backupStatus" class="backup-status" aria-live="polite">Sauvegarde auto: initialisation...</p>
       <div class="notification-note">
         <label class="switch" for="notificationToggle">
           <input id="notificationToggle" type="checkbox" />

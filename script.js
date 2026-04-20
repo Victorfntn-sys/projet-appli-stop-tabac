@@ -55,6 +55,7 @@ const notificationQuietStart = document.getElementById('notificationQuietStart')
 const notificationQuietEnd = document.getElementById('notificationQuietEnd');
 const notificationTone = document.getElementById('notificationTone');
 const notificationWeeklyDay = document.getElementById('notificationWeeklyDay');
+const backupStatus = document.getElementById('backupStatus');
 const resultCard = document.querySelector('.result-card');
 const savingsProjection = document.getElementById('savingsProjection');
 const appLoadingScreen = document.getElementById('appLoadingScreen');
@@ -103,6 +104,8 @@ let launchAdCountdownIntervalId = null;
 let onboardingStepIndex = 0;
 let cravingIntervalId = null;
 let cravingSecondsLeft = 180;
+let backupSyncTimeoutId = null;
+let lastBackupPayloadKey = '';
 const PUSH_STATE_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 const SERVICE_WORKER_UPDATE_CHECK_INTERVAL_MS = 60 * 1000;
 const LAUNCH_AD_COOLDOWN_MS = 6 * 60 * 60 * 1000;
@@ -110,6 +113,7 @@ const LAUNCH_AD_SHOW_EVERY_N_OPENS = 3;
 const LAUNCH_AD_AUTO_CLOSE_SECONDS = 5;
 const CRAVING_SESSION_DURATION_SECONDS = 180;
 const MAX_ANALYTICS_EVENTS = 200;
+const BACKUP_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 let trackingState = {
   isPaused: false,
   pauseStartedAt: null,
@@ -329,6 +333,177 @@ function trackEvent(name, meta = {}) {
   } catch {
     // ignore analytics storage failures
   }
+}
+
+function setBackupStatus(message, type = '') {
+  if (!backupStatus) {
+    return;
+  }
+  backupStatus.textContent = message;
+  backupStatus.classList.remove('error', 'success');
+  if (type) {
+    backupStatus.classList.add(type);
+  }
+}
+
+function toIsoDateValue(value) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) {
+    return '';
+  }
+  return date.toISOString().split('T')[0];
+}
+
+function isLocalStateMostlyEmpty() {
+  const hasNumbers = (Number(cigarettesPerDay.value) || 0) > 0 || parseFrenchNumber(pricePerPack.value) > 0;
+  const hasDate = Boolean(quitDate.value);
+  const hasGoal = Boolean(goalNameInput.value.trim()) || parseFrenchNumber(goalAmountInput.value) > 0;
+  return !hasNumbers && !hasDate && !hasGoal;
+}
+
+function applyBackupStateToUi(backupState) {
+  if (!backupState || typeof backupState !== 'object') {
+    return;
+  }
+
+  if (typeof backupState.cigsPerDay !== 'undefined') {
+    cigarettesPerDay.value = String(Number(backupState.cigsPerDay) || 0);
+    saveFieldValue(STORAGE_CIGARETTES_PER_DAY, cigarettesPerDay.value);
+  }
+
+  if (typeof backupState.pricePerPack !== 'undefined') {
+    const formattedPrice = Number(backupState.pricePerPack || 0).toFixed(2).replace('.', ',');
+    pricePerPack.value = formattedPrice;
+    saveFieldValue(STORAGE_PRICE_PER_PACK, formattedPrice);
+  }
+
+  if (typeof backupState.cigsPerPack !== 'undefined') {
+    cigarettesPerPack.value = String(Number(backupState.cigsPerPack) || 1);
+    saveFieldValue(STORAGE_CIGARETTES_PER_PACK, cigarettesPerPack.value);
+  }
+
+  if (typeof backupState.quitDate === 'string' && backupState.quitDate) {
+    const isoDate = toIsoDateValue(backupState.quitDate);
+    if (isoDate) {
+      quitDate.value = isoDate;
+      saveQuitDate(isoDate);
+    }
+  }
+
+  if (typeof backupState.goalName === 'string') {
+    goalNameInput.value = backupState.goalName;
+    saveFieldValue(STORAGE_GOAL_NAME, goalNameInput.value);
+  }
+
+  if (typeof backupState.goalAmount !== 'undefined') {
+    const formattedGoalAmount = Number(backupState.goalAmount || 0).toFixed(2).replace('.', ',');
+    goalAmountInput.value = formattedGoalAmount;
+    saveFieldValue(STORAGE_GOAL_AMOUNT, formattedGoalAmount);
+  }
+
+  trackingState = {
+    isPaused: Boolean(backupState.isPaused),
+    pauseStartedAt: backupState.pauseStartedAt || null,
+    pausedDaysTotal: Number(backupState.pausedDaysTotal) || 0,
+  };
+  saveTrackingState();
+
+  const notificationPrefs = backupState.notificationPrefs;
+  if (notificationPrefs && typeof notificationPrefs === 'object') {
+    saveNotificationPrefs({
+      frequency: notificationPrefs.frequency || defaultNotificationPrefs.frequency,
+      reminderTime: notificationPrefs.reminderTime || defaultNotificationPrefs.reminderTime,
+      quietStart: notificationPrefs.quietStart || defaultNotificationPrefs.quietStart,
+      quietEnd: notificationPrefs.quietEnd || defaultNotificationPrefs.quietEnd,
+      tone: notificationPrefs.tone || defaultNotificationPrefs.tone,
+      weeklyDay: String(notificationPrefs.weeklyDay ?? defaultNotificationPrefs.weeklyDay),
+    });
+    applyNotificationPrefsToInputs();
+  }
+}
+
+async function restoreStateFromBackupIfNeeded() {
+  if (!isLocalStateMostlyEmpty()) {
+    setBackupStatus('Sauvegarde auto: active sur cet appareil.', 'success');
+    return;
+  }
+
+  try {
+    setBackupStatus('Sauvegarde auto: recherche d\'une sauvegarde distante...');
+    const response = await fetch(`/api/backup/state/${encodeURIComponent(clientId)}`);
+    if (response.status === 404) {
+      setBackupStatus('Sauvegarde auto: aucune sauvegarde distante pour le moment.');
+      return;
+    }
+    if (!response.ok) {
+      throw new Error('backup-restore-failed');
+    }
+
+    const payload = await response.json();
+    if (!payload?.backup?.state) {
+      setBackupStatus('Sauvegarde auto: format de sauvegarde invalide.', 'error');
+      return;
+    }
+
+    applyBackupStateToUi(payload.backup.state);
+    refreshTrackingUI(new Date());
+    calculateSavings();
+    setBackupStatus('Sauvegarde auto: donnees restaurees avec succes.', 'success');
+    trackEvent('backup_restored', { updatedAt: payload.backup.updatedAt || '' });
+  } catch {
+    setBackupStatus('Sauvegarde auto: echec de restauration distante.', 'error');
+  }
+}
+
+function getBackupPayload() {
+  return {
+    clientId,
+    state: getCurrentUserState(),
+  };
+}
+
+function queueAutomaticBackupSync() {
+  const payload = getBackupPayload();
+  const payloadKey = JSON.stringify(payload);
+
+  if (payloadKey === lastBackupPayloadKey) {
+    return;
+  }
+
+  if (backupSyncTimeoutId) {
+    clearTimeout(backupSyncTimeoutId);
+  }
+
+  setBackupStatus('Sauvegarde auto: synchronisation en attente...');
+  backupSyncTimeoutId = window.setTimeout(async () => {
+    try {
+      const response = await fetch('/api/backup/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error('backup-save-failed');
+      }
+
+      const data = await response.json();
+      lastBackupPayloadKey = payloadKey;
+      setBackupStatus(`Sauvegarde auto: synchronisee (${new Date(data.updatedAt || Date.now()).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}).`, 'success');
+      trackEvent('backup_synced', { updatedAt: data.updatedAt || '' });
+    } catch {
+      setBackupStatus('Sauvegarde auto: echec de synchronisation.', 'error');
+    }
+  }, 1000);
+}
+
+function startAutomaticBackupScheduler() {
+  window.setInterval(() => {
+    if (!navigator.onLine || document.hidden) {
+      return;
+    }
+    queueAutomaticBackupSync();
+  }, BACKUP_SYNC_INTERVAL_MS);
 }
 
 function getStoredNotificationPrefs() {
@@ -1090,6 +1265,7 @@ function togglePauseTracking() {
   refreshTrackingUI(today);
   calculateSavings();
   syncPushState();
+  queueAutomaticBackupSync();
 }
 
 function formatCurrency(value) {
@@ -1332,6 +1508,7 @@ function calculateSavings() {
     savedCigarettes,
     dailyCost,
   });
+  queueAutomaticBackupSync();
 
   const packsSaved = cigsPerPack > 0 ? Math.floor(savedCigarettes / cigsPerPack) : 0;
   const newPacks = packsSaved - lastPackCount;
@@ -1558,11 +1735,13 @@ pricePerPack.addEventListener('input', () => {
   pricePerPack.value = value;
   saveFieldValue(STORAGE_PRICE_PER_PACK, value);
   calculateSavings();
+  queueAutomaticBackupSync();
 });
 
 goalNameInput.addEventListener('input', () => {
   saveFieldValue(STORAGE_GOAL_NAME, goalNameInput.value);
   calculateSavings();
+  queueAutomaticBackupSync();
 });
 
 goalAmountInput.addEventListener('input', () => {
@@ -1570,16 +1749,19 @@ goalAmountInput.addEventListener('input', () => {
   goalAmountInput.value = value;
   saveFieldValue(STORAGE_GOAL_AMOUNT, value);
   calculateSavings();
+  queueAutomaticBackupSync();
 });
 
 cigarettesPerDay.addEventListener('input', () => {
   saveFieldValue(STORAGE_CIGARETTES_PER_DAY, cigarettesPerDay.value);
   calculateSavings();
+  queueAutomaticBackupSync();
 });
 
 cigarettesPerPack.addEventListener('input', () => {
   saveFieldValue(STORAGE_CIGARETTES_PER_PACK, cigarettesPerPack.value);
   calculateSavings();
+  queueAutomaticBackupSync();
 });
 calculateButton.addEventListener('click', handleCalculateButtonClick);
 pauseToggleButton.addEventListener('click', togglePauseTracking);
@@ -1652,6 +1834,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   trackingState = getStoredTrackingState();
   updateAppLoading(54, 'Calcul de votre progression...');
   refreshTrackingUI(today);
+  await restoreStateFromBackupIfNeeded();
   calculateSavings();
   updateNotificationStatus(Notification.permission);
   updateAppLoading(74, 'Configuration des notifications...');
@@ -1667,6 +1850,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
   updateAppLoading(88, 'Finalisation de l\'interface...');
   startPushStateSyncScheduler();
+  startAutomaticBackupScheduler();
   startPauseReminderScheduler();
   maybeSendPauseEncouragement();
   updateCravingSessionCountLabel();
@@ -1797,6 +1981,8 @@ window.addEventListener('DOMContentLoaded', async () => {
       openOnboarding();
     }, 180);
   }
+
+  queueAutomaticBackupSync();
 
 });
 

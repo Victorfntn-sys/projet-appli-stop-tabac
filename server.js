@@ -13,6 +13,7 @@ const dataFile = path.join(dataDir, 'subscriptions.json');
 const feedbackFile = path.join(dataDir, 'feedback.json');
 const userStatesCsvFile = path.join(dataDir, 'user-states.csv');
 const userStatesXlsxFile = path.join(dataDir, 'user-states.xlsx');
+const userBackupsFile = path.join(dataDir, 'user-backups.json');
 const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || '';
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '';
 const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:contact@example.com';
@@ -133,6 +134,75 @@ async function ensureUserStatesXlsxFile() {
   if (!fileExists || workbookChanged) {
     await workbook.xlsx.writeFile(userStatesXlsxFile);
   }
+}
+
+async function ensureUserBackupsFile() {
+  await fs.mkdir(dataDir, { recursive: true });
+  try {
+    await fs.access(userBackupsFile);
+  } catch {
+    await fs.writeFile(userBackupsFile, '{}', 'utf8');
+  }
+}
+
+async function readUserBackups() {
+  await ensureUserBackupsFile();
+  const raw = await fs.readFile(userBackupsFile, 'utf8');
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+async function writeUserBackups(backupsByClientId) {
+  await ensureUserBackupsFile();
+  await fs.writeFile(userBackupsFile, JSON.stringify(backupsByClientId, null, 2), 'utf8');
+}
+
+function sanitizeClientId(value) {
+  const id = typeof value === 'string' ? value.trim() : '';
+  if (!id || id.length > 80) {
+    return '';
+  }
+  return id;
+}
+
+function sanitizeBackupState(state) {
+  if (!state || typeof state !== 'object' || Array.isArray(state)) {
+    return null;
+  }
+
+  return {
+    cigsPerDay: Number(state.cigsPerDay) || 0,
+    pricePerPack: Number(state.pricePerPack) || 0,
+    cigsPerPack: Number(state.cigsPerPack) || 1,
+    quitDate: typeof state.quitDate === 'string' ? state.quitDate.trim().slice(0, 40) : '',
+    goalName: typeof state.goalName === 'string' ? state.goalName.trim().slice(0, 150) : '',
+    goalAmount: Number(state.goalAmount) || 0,
+    isPaused: Boolean(state.isPaused),
+    pauseStartedAt: typeof state.pauseStartedAt === 'string' ? state.pauseStartedAt.trim().slice(0, 40) : null,
+    pausedDaysTotal: Number(state.pausedDaysTotal) || 0,
+    notificationPrefs: state.notificationPrefs && typeof state.notificationPrefs === 'object'
+      ? {
+          frequency: typeof state.notificationPrefs.frequency === 'string' ? state.notificationPrefs.frequency.slice(0, 20) : 'daily',
+          reminderTime: typeof state.notificationPrefs.reminderTime === 'string' ? state.notificationPrefs.reminderTime.slice(0, 10) : '09:00',
+          quietStart: typeof state.notificationPrefs.quietStart === 'string' ? state.notificationPrefs.quietStart.slice(0, 10) : '21:30',
+          quietEnd: typeof state.notificationPrefs.quietEnd === 'string' ? state.notificationPrefs.quietEnd.slice(0, 10) : '08:00',
+          tone: typeof state.notificationPrefs.tone === 'string' ? state.notificationPrefs.tone.slice(0, 20) : 'supportive',
+          weeklyDay: String(state.notificationPrefs.weeklyDay ?? '1').slice(0, 2),
+        }
+      : {
+          frequency: 'daily',
+          reminderTime: '09:00',
+          quietStart: '21:30',
+          quietEnd: '08:00',
+          tone: 'supportive',
+          weeklyDay: '1',
+        },
+    timezoneOffsetMinutes: Number(state.timezoneOffsetMinutes) || 0,
+  };
 }
 
 async function readSubscriptions() {
@@ -611,6 +681,62 @@ app.post('/api/user-state', async (req, res) => {
   }
 });
 
+app.post('/api/backup/state', async (req, res) => {
+  try {
+    const clientId = sanitizeClientId(req.body?.clientId);
+    const backupState = sanitizeBackupState(req.body?.state);
+
+    if (!clientId) {
+      res.status(400).json({ error: 'missing-client-id' });
+      return;
+    }
+
+    if (!backupState) {
+      res.status(400).json({ error: 'invalid-backup-state' });
+      return;
+    }
+
+    const backupsByClientId = await readUserBackups();
+    backupsByClientId[clientId] = {
+      clientId,
+      state: backupState,
+      updatedAt: new Date().toISOString(),
+      source: req.get('origin') || req.get('host') || '',
+      userAgent: req.get('user-agent') || '',
+    };
+
+    await writeUserBackups(backupsByClientId);
+    res.json({ ok: true, updatedAt: backupsByClientId[clientId].updatedAt });
+  } catch {
+    res.status(500).json({ error: 'backup-save-failed' });
+  }
+});
+
+app.get('/api/backup/state/:clientId', async (req, res) => {
+  try {
+    const clientId = sanitizeClientId(req.params?.clientId);
+    if (!clientId) {
+      res.status(400).json({ error: 'invalid-client-id' });
+      return;
+    }
+
+    const backupsByClientId = await readUserBackups();
+    const backup = backupsByClientId[clientId];
+
+    if (!backup) {
+      res.status(404).json({ error: 'backup-not-found' });
+      return;
+    }
+
+    res.json({
+      ok: true,
+      backup,
+    });
+  } catch {
+    res.status(500).json({ error: 'backup-read-failed' });
+  }
+});
+
 app.get('/api/user-state/export-all', async (req, res) => {
   try {
     const providedKey = typeof req.query?.key === 'string' ? req.query.key.trim() : '';
@@ -670,7 +796,7 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-Promise.all([ensureDataFile(), ensureFeedbackFile(), ensureUserStatesCsvFile(), ensureUserStatesXlsxFile()]).then(() => {
+Promise.all([ensureDataFile(), ensureFeedbackFile(), ensureUserStatesCsvFile(), ensureUserStatesXlsxFile(), ensureUserBackupsFile()]).then(() => {
   app.listen(port, () => {
     console.log(`Server running on http://localhost:${port}`);
   });
