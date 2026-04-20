@@ -3,26 +3,25 @@ require('dotenv').config();
 const express = require('express');
 const fs = require('fs/promises');
 const path = require('path');
-const crypto = require('crypto');
 const ExcelJS = require('exceljs');
 const webPush = require('web-push');
 
 const app = express();
+app.disable('x-powered-by');
+app.set('etag', false);
 const port = Number(process.env.PORT) || 3000;
 const dataDir = path.join(__dirname, 'data');
 const dataFile = path.join(dataDir, 'subscriptions.json');
 const feedbackFile = path.join(dataDir, 'feedback.json');
 const userStatesCsvFile = path.join(dataDir, 'user-states.csv');
 const userStatesXlsxFile = path.join(dataDir, 'user-states.xlsx');
-const userBackupsFile = path.join(dataDir, 'user-backups.json');
 const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || '';
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '';
 const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:contact@example.com';
 const feedbackWebhookUrl = process.env.FEEDBACK_WEBHOOK_URL || '';
 const exportAdminKey = process.env.EXPORT_ADMIN_KEY || '';
+const adminApiKey = process.env.ADMIN_API_KEY || exportAdminKey || '';
 const twaPackageName = process.env.TWA_PACKAGE_NAME || 'com.victorfntn.stoptabac';
-const backupEncryptionSecret = process.env.BACKUP_ENCRYPTION_SECRET || vapidPrivateKey || 'dev-insecure-backup-secret-change-me';
-const MAX_BACKUP_VERSIONS = 20;
 const twaSha256Fingerprints = (process.env.TWA_SHA256_CERT_FINGERPRINTS || '')
   .split(',')
   .map(value => value.trim())
@@ -32,7 +31,14 @@ if (vapidPublicKey && vapidPrivateKey) {
   webPush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 }
 
-app.use(express.json());
+app.use(express.json({ limit: '200kb' }));
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  next();
+});
 app.use(express.static(__dirname));
 
 async function ensureDataFile() {
@@ -139,154 +145,6 @@ async function ensureUserStatesXlsxFile() {
   }
 }
 
-async function ensureUserBackupsFile() {
-  await fs.mkdir(dataDir, { recursive: true });
-  try {
-    await fs.access(userBackupsFile);
-  } catch {
-    await fs.writeFile(userBackupsFile, '{}', 'utf8');
-  }
-}
-
-async function readUserBackups() {
-  await ensureUserBackupsFile();
-  const raw = await fs.readFile(userBackupsFile, 'utf8');
-  try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-async function writeUserBackups(backupsByClientId) {
-  await ensureUserBackupsFile();
-  await fs.writeFile(userBackupsFile, JSON.stringify(backupsByClientId, null, 2), 'utf8');
-}
-
-function sanitizeClientId(value) {
-  const id = typeof value === 'string' ? value.trim() : '';
-  if (!id || id.length > 80) {
-    return '';
-  }
-  return id;
-}
-
-function sanitizeBackupState(state) {
-  if (!state || typeof state !== 'object' || Array.isArray(state)) {
-    return null;
-  }
-
-  return {
-    cigsPerDay: Number(state.cigsPerDay) || 0,
-    pricePerPack: Number(state.pricePerPack) || 0,
-    cigsPerPack: Number(state.cigsPerPack) || 1,
-    quitDate: typeof state.quitDate === 'string' ? state.quitDate.trim().slice(0, 40) : '',
-    goalName: typeof state.goalName === 'string' ? state.goalName.trim().slice(0, 150) : '',
-    goalAmount: Number(state.goalAmount) || 0,
-    isPaused: Boolean(state.isPaused),
-    pauseStartedAt: typeof state.pauseStartedAt === 'string' ? state.pauseStartedAt.trim().slice(0, 40) : null,
-    pausedDaysTotal: Number(state.pausedDaysTotal) || 0,
-    notificationPrefs: state.notificationPrefs && typeof state.notificationPrefs === 'object'
-      ? {
-          frequency: typeof state.notificationPrefs.frequency === 'string' ? state.notificationPrefs.frequency.slice(0, 20) : 'daily',
-          reminderTime: typeof state.notificationPrefs.reminderTime === 'string' ? state.notificationPrefs.reminderTime.slice(0, 10) : '09:00',
-          quietStart: typeof state.notificationPrefs.quietStart === 'string' ? state.notificationPrefs.quietStart.slice(0, 10) : '21:30',
-          quietEnd: typeof state.notificationPrefs.quietEnd === 'string' ? state.notificationPrefs.quietEnd.slice(0, 10) : '08:00',
-          tone: typeof state.notificationPrefs.tone === 'string' ? state.notificationPrefs.tone.slice(0, 20) : 'supportive',
-          weeklyDay: String(state.notificationPrefs.weeklyDay ?? '1').slice(0, 2),
-        }
-      : {
-          frequency: 'daily',
-          reminderTime: '09:00',
-          quietStart: '21:30',
-          quietEnd: '08:00',
-          tone: 'supportive',
-          weeklyDay: '1',
-        },
-    timezoneOffsetMinutes: Number(state.timezoneOffsetMinutes) || 0,
-  };
-}
-
-function hashRecoveryKey(recoveryKey) {
-  const normalized = typeof recoveryKey === 'string' ? recoveryKey.trim() : '';
-  if (!normalized) {
-    return '';
-  }
-  return crypto.createHash('sha256').update(normalized, 'utf8').digest('hex');
-}
-
-function getBackupEncryptionKey() {
-  return crypto.createHash('sha256').update(String(backupEncryptionSecret), 'utf8').digest();
-}
-
-function encryptBackupState(state) {
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', getBackupEncryptionKey(), iv);
-  const json = JSON.stringify(state);
-  const encryptedBuffer = Buffer.concat([cipher.update(json, 'utf8'), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return {
-    algorithm: 'aes-256-gcm',
-    iv: iv.toString('base64'),
-    tag: tag.toString('base64'),
-    encryptedState: encryptedBuffer.toString('base64'),
-  };
-}
-
-function decryptBackupState(versionEntry) {
-  if (!versionEntry?.encryptedState || !versionEntry?.iv || !versionEntry?.tag) {
-    return null;
-  }
-  try {
-    const decipher = crypto.createDecipheriv(
-      'aes-256-gcm',
-      getBackupEncryptionKey(),
-      Buffer.from(versionEntry.iv, 'base64')
-    );
-    decipher.setAuthTag(Buffer.from(versionEntry.tag, 'base64'));
-    const decrypted = Buffer.concat([
-      decipher.update(Buffer.from(versionEntry.encryptedState, 'base64')),
-      decipher.final(),
-    ]);
-    const parsed = JSON.parse(decrypted.toString('utf8'));
-    return sanitizeBackupState(parsed);
-  } catch {
-    return null;
-  }
-}
-
-function getBackupVersionsMeta(record) {
-  if (!record?.versions || !Array.isArray(record.versions)) {
-    return [];
-  }
-  return record.versions
-    .map(item => ({ id: item.id, createdAt: item.createdAt }))
-    .filter(item => item.id && item.createdAt)
-    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-}
-
-function getLatestBackupState(record) {
-  if (record?.versions && Array.isArray(record.versions) && record.versions.length > 0) {
-    return decryptBackupState(record.versions[record.versions.length - 1]);
-  }
-  if (record?.state) {
-    return sanitizeBackupState(record.state);
-  }
-  return null;
-}
-
-function getBackupStateByVersionId(record, versionId) {
-  if (!record?.versions || !Array.isArray(record.versions) || !versionId) {
-    return null;
-  }
-  const versionEntry = record.versions.find(item => item.id === versionId);
-  if (!versionEntry) {
-    return null;
-  }
-  return decryptBackupState(versionEntry);
-}
-
 async function readSubscriptions() {
   await ensureDataFile();
   const raw = await fs.readFile(dataFile, 'utf8');
@@ -321,6 +179,45 @@ async function writeFeedbackEntries(entries) {
 
 function getSubscriptionId(subscription) {
   return subscription?.endpoint || '';
+}
+
+function getProvidedAdminKey(req) {
+  const headerKey = typeof req.get('x-admin-key') === 'string' ? req.get('x-admin-key').trim() : '';
+  if (headerKey) {
+    return headerKey;
+  }
+
+  const authorization = typeof req.get('authorization') === 'string' ? req.get('authorization').trim() : '';
+  const bearerPrefix = 'Bearer ';
+  if (authorization.startsWith(bearerPrefix) && authorization.length > bearerPrefix.length) {
+    return authorization.slice(bearerPrefix.length).trim();
+  }
+
+  if (typeof req.query?.key === 'string') {
+    return req.query.key.trim();
+  }
+
+  return '';
+}
+
+function isAdminAuthorized(req) {
+  if (!adminApiKey) {
+    return false;
+  }
+  const providedKey = getProvidedAdminKey(req);
+  return providedKey === adminApiKey;
+}
+
+function requireAdminAuth(req, res, next) {
+  if (!adminApiKey) {
+    res.status(503).json({ error: 'admin-key-not-configured' });
+    return;
+  }
+  if (!isAdminAuthorized(req)) {
+    res.status(403).json({ error: 'forbidden' });
+    return;
+  }
+  next();
 }
 
 function csvEscape(value) {
@@ -610,6 +507,19 @@ app.get('/healthz', async (req, res) => {
   }
 });
 
+app.get('/api/admin/status', requireAdminAuth, async (req, res) => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.json({
+    ok: true,
+    environment: process.env.NODE_ENV || 'development',
+    isProduction,
+    vapidConfigured: Boolean(vapidPublicKey && vapidPrivateKey),
+    adminConfigured: Boolean(adminApiKey),
+    assetLinksConfigured: Boolean(twaPackageName && twaSha256Fingerprints.length > 0),
+    timestamp: new Date().toISOString(),
+  });
+});
+
 app.get('/api/push/public-key', (req, res) => {
   if (!vapidPublicKey) {
     res.status(503).json({ error: 'missing-vapid-keys' });
@@ -673,7 +583,7 @@ app.post('/api/push/unsubscribe', async (req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/api/push/run-now', async (req, res) => {
+app.post('/api/push/run-now', requireAdminAuth, async (req, res) => {
   await sendScheduledNotifications();
   res.json({ ok: true });
 });
@@ -763,145 +673,30 @@ app.post('/api/user-state', async (req, res) => {
   }
 });
 
-app.post('/api/backup/state', async (req, res) => {
-  try {
-    const clientId = sanitizeClientId(req.body?.clientId);
-    const backupState = sanitizeBackupState(req.body?.state);
-    const recoveryKeyHash = hashRecoveryKey(req.body?.recoveryKey);
-
-    if (!clientId) {
-      res.status(400).json({ error: 'missing-client-id' });
-      return;
-    }
-
-    if (!backupState) {
-      res.status(400).json({ error: 'invalid-backup-state' });
-      return;
-    }
-
-    const backupsByClientId = await readUserBackups();
-    const existingRecord = backupsByClientId[clientId] || {};
-
-    if (existingRecord.recoveryKeyHash && existingRecord.recoveryKeyHash !== recoveryKeyHash) {
-      res.status(403).json({ error: 'invalid-recovery-key' });
-      return;
-    }
-
-    const encryptedVersion = encryptBackupState(backupState);
-    const nextVersions = Array.isArray(existingRecord.versions) ? [...existingRecord.versions] : [];
-    const nextVersionEntry = {
-      id: `${Date.now()}-${crypto.randomBytes(4).toString('hex')}`,
-      createdAt: new Date().toISOString(),
-      ...encryptedVersion,
-    };
-    nextVersions.push(nextVersionEntry);
-    const boundedVersions = nextVersions.slice(-MAX_BACKUP_VERSIONS);
-
-    backupsByClientId[clientId] = {
-      clientId,
-      recoveryKeyHash: existingRecord.recoveryKeyHash || recoveryKeyHash || '',
-      versions: boundedVersions,
-      updatedAt: new Date().toISOString(),
-      source: req.get('origin') || req.get('host') || '',
-      userAgent: req.get('user-agent') || '',
-    };
-
-    await writeUserBackups(backupsByClientId);
-    res.json({
-      ok: true,
-      updatedAt: backupsByClientId[clientId].updatedAt,
-      latestVersionId: nextVersionEntry.id,
-      versionsCount: boundedVersions.length,
-    });
-  } catch {
-    res.status(500).json({ error: 'backup-save-failed' });
-  }
+app.post('/api/backup/state', (req, res) => {
+  res.status(410).json({
+    error: 'backup-feature-disabled',
+    message: 'Backup feature is disabled in this production build.',
+  });
 });
 
-app.get('/api/backup/state/:clientId', async (req, res) => {
-  try {
-    const clientId = sanitizeClientId(req.params?.clientId);
-    const requestedVersionId = typeof req.query?.versionId === 'string' ? req.query.versionId.trim() : '';
-    const recoveryKeyHash = hashRecoveryKey(req.query?.recoveryKey);
-
-    if (!clientId) {
-      res.status(400).json({ error: 'invalid-client-id' });
-      return;
-    }
-
-    const backupsByClientId = await readUserBackups();
-    const backup = backupsByClientId[clientId];
-
-    if (!backup) {
-      res.status(404).json({ error: 'backup-not-found' });
-      return;
-    }
-
-    if (backup.recoveryKeyHash && backup.recoveryKeyHash !== recoveryKeyHash) {
-      res.status(403).json({ error: 'invalid-recovery-key' });
-      return;
-    }
-
-    const restoredState = requestedVersionId
-      ? getBackupStateByVersionId(backup, requestedVersionId)
-      : getLatestBackupState(backup);
-
-    if (!restoredState) {
-      res.status(404).json({ error: requestedVersionId ? 'backup-version-not-found' : 'backup-state-not-found' });
-      return;
-    }
-
-    res.json({
-      ok: true,
-      backup: {
-        clientId,
-        state: restoredState,
-        updatedAt: backup.updatedAt || '',
-      },
-      versions: getBackupVersionsMeta(backup),
-    });
-  } catch {
-    res.status(500).json({ error: 'backup-read-failed' });
-  }
+app.get('/api/backup/state/:clientId', (req, res) => {
+  res.status(410).json({
+    error: 'backup-feature-disabled',
+    message: 'Backup feature is disabled in this production build.',
+  });
 });
 
-app.get('/api/backup/versions/:clientId', async (req, res) => {
-  try {
-    const clientId = sanitizeClientId(req.params?.clientId);
-    const recoveryKeyHash = hashRecoveryKey(req.query?.recoveryKey);
-
-    if (!clientId) {
-      res.status(400).json({ error: 'invalid-client-id' });
-      return;
-    }
-
-    const backupsByClientId = await readUserBackups();
-    const backup = backupsByClientId[clientId];
-
-    if (!backup) {
-      res.status(404).json({ error: 'backup-not-found' });
-      return;
-    }
-
-    if (backup.recoveryKeyHash && backup.recoveryKeyHash !== recoveryKeyHash) {
-      res.status(403).json({ error: 'invalid-recovery-key' });
-      return;
-    }
-
-    res.json({
-      ok: true,
-      versions: getBackupVersionsMeta(backup),
-      updatedAt: backup.updatedAt || '',
-    });
-  } catch {
-    res.status(500).json({ error: 'backup-versions-read-failed' });
-  }
+app.get('/api/backup/versions/:clientId', (req, res) => {
+  res.status(410).json({
+    error: 'backup-feature-disabled',
+    message: 'Backup feature is disabled in this production build.',
+  });
 });
 
 app.get('/api/user-state/export-all', async (req, res) => {
   try {
-    const providedKey = typeof req.query?.key === 'string' ? req.query.key.trim() : '';
-    if (!exportAdminKey || providedKey !== exportAdminKey) {
+    if (!isAdminAuthorized(req)) {
       res.status(403).json({ error: 'forbidden' });
       return;
     }
@@ -917,8 +712,7 @@ app.get('/api/user-state/export-all', async (req, res) => {
 
 app.get('/api/user-state/export-all.xlsx', async (req, res) => {
   try {
-    const providedKey = typeof req.query?.key === 'string' ? req.query.key.trim() : '';
-    if (!exportAdminKey || providedKey !== exportAdminKey) {
+    if (!isAdminAuthorized(req)) {
       res.status(403).json({ error: 'forbidden' });
       return;
     }
@@ -957,7 +751,7 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-Promise.all([ensureDataFile(), ensureFeedbackFile(), ensureUserStatesCsvFile(), ensureUserStatesXlsxFile(), ensureUserBackupsFile()]).then(() => {
+Promise.all([ensureDataFile(), ensureFeedbackFile(), ensureUserStatesCsvFile(), ensureUserStatesXlsxFile()]).then(() => {
   app.listen(port, () => {
     console.log(`Server running on http://localhost:${port}`);
   });

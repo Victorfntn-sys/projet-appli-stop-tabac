@@ -1,10 +1,13 @@
-const CACHE_NAME = 'stop-smoking-cache-v5';
+const CACHE_NAME = 'stop-smoking-cache-v6';
 const APP_ASSETS = [
   './',
   './index.html',
+  './privacy.html',
   './styles.css',
   './script.js',
   './manifest.webmanifest',
+  './icon-192.png',
+  './icon-512.png',
   './icon-192.svg',
   './icon-512.svg',
   'https://cdn.jsdelivr.net/npm/chart.js',
@@ -100,8 +103,8 @@ self.addEventListener('push', event => {
   event.waitUntil(
     self.registration.showNotification(payload.title, {
       body: payload.body,
-      badge: './icon-192.svg',
-      icon: './icon-512.svg',
+      badge: './icon-192.png',
+      icon: './icon-512.png',
       tag: payload.tag || 'stop-smoking-push',
       renotify: true,
       data: {

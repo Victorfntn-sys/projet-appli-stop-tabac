@@ -17,7 +17,7 @@ Application web de suivi d'arret du tabac avec objectifs, badges, graphique, mod
 
 ## Prerequis
 
-- Node.js 18+
+- Node.js 20+
 - un domaine ou un hebergement HTTPS pour les notifications push en production
 
 ## Installation locale
@@ -42,6 +42,8 @@ VAPID_SUBJECT=mailto:contact@example.com
 VAPID_PUBLIC_KEY=...
 VAPID_PRIVATE_KEY=...
 ```
+
+Pour la production, utilisez `.env.production.example` comme base et gardez `.env.production` local (non versionne).
 
 4. Lancez le serveur :
 
@@ -136,6 +138,7 @@ VAPID_PUBLIC_KEY=...
 VAPID_PRIVATE_KEY=...
 FEEDBACK_WEBHOOK_URL=
 EXPORT_ADMIN_KEY=choisir_une_cle_secrete_forte
+ADMIN_API_KEY=choisir_une_cle_admin_forte
 ```
 
 ## Structure du projet
@@ -145,6 +148,7 @@ EXPORT_ADMIN_KEY=choisir_une_cle_secrete_forte
 - `script.js` : logique frontend, PWA, notifications, synchronisation push
 - `sw.js` : service worker et reception des push
 - `manifest.webmanifest` : configuration PWA
+- `privacy.html` : politique de confidentialite
 - `server.js` : backend Express + Web Push
 - `data/subscriptions.json` : stockage local des souscriptions push
 - `data/feedback.json` : stockage local des idees d'amelioration
@@ -154,8 +158,9 @@ EXPORT_ADMIN_KEY=choisir_une_cle_secrete_forte
 ## Export global proprietaire (Excel)
 
 - Le bouton d'export dans l'interface telecharge toutes les donnees utilisateurs.
-- Cet export est protege par une cle admin (`EXPORT_ADMIN_KEY`).
-- Au clic, l'application demande la cle puis telecharge `all-user-states.xlsx`.
+- Cet export est protege par une cle admin (`ADMIN_API_KEY` ou `EXPORT_ADMIN_KEY`).
+- Requete recommandee : header `x-admin-key` ou `Authorization: Bearer <cle>`.
+- Compatibilite legacy : la query `?key=` reste acceptee temporairement.
 
 ## Limites techniques
 
@@ -169,7 +174,14 @@ EXPORT_ADMIN_KEY=choisir_une_cle_secrete_forte
 npm install
 npm run generate:vapid
 npm start
+npm run check:release
 ```
+
+## Outils developpeur (admin)
+
+- Endpoint de diagnostic admin: `/api/admin/status`
+- Auth requise: header `x-admin-key: <ADMIN_API_KEY>` (ou `Authorization: Bearer <ADMIN_API_KEY>`)
+- Utilite: verifier rapidement l'etat de configuration prod sans exposer les secrets
 
 ## Publication sur le Play Store (TWA)
 

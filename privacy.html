@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#2f7cff" />
+  <title>Politique de confidentialite - Stop Tabac</title>
+  <style>
+    :root {
+      --bg: #f4f8fb;
+      --surface: #ffffff;
+      --text: #16333a;
+      --muted: #557077;
+      --primary: #1d8f84;
+      --border: #d7ebe7;
+      --shadow: 0 14px 32px rgba(22, 80, 73, 0.09);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 28px;
+      font-family: "Nunito Sans", "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 680px at 8% -10%, #dcf3ec 0%, transparent 60%),
+        radial-gradient(1000px 640px at 100% -5%, #e5f4f9 0%, transparent 58%),
+        linear-gradient(180deg, #f7fdfb 0%, #f2fbf8 100%);
+    }
+
+    .container {
+      width: min(100%, 860px);
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 28px;
+      box-shadow: var(--shadow);
+    }
+
+    h1 { margin-top: 0; }
+    h2 { margin-top: 26px; }
+    p, li { color: var(--muted); line-height: 1.6; }
+    a { color: var(--primary); }
+
+    .meta {
+      margin-top: -8px;
+      font-size: 0.95rem;
+    }
+
+    @media (max-width: 640px) {
+      body { padding: 16px; }
+      .container { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>Politique de confidentialite</h1>
+    <p class="meta">Derniere mise a jour: 20 avril 2026</p>
+
+    <p>
+      Cette application ("Stop Tabac") permet de suivre votre arret du tabac, vos economies et vos rappels.
+      Nous appliquons le principe de minimisation des donnees: seules les donnees necessaires au fonctionnement
+      des fonctionnalites sont traitees.
+    </p>
+
+    <h2>Donnees traitees</h2>
+    <ul>
+      <li>Donnees de suivi saisies par l'utilisateur (consommation, date d'arret, objectif).</li>
+      <li>Identifiant technique client (clientId) genere pour synchroniser certaines fonctionnalites.</li>
+      <li>Souscriptions push navigateur, uniquement pour envoyer les notifications demandees.</li>
+      <li>Retours envoyes via le formulaire d'idees (message, contact optionnel).</li>
+      <li>Sauvegardes chiffrees si la fonctionnalite de sauvegarde est utilisee.</li>
+    </ul>
+
+    <h2>Finalites</h2>
+    <ul>
+      <li>Calculer vos statistiques de progression.</li>
+      <li>Envoyer des rappels de motivation et de progression (si active).</li>
+      <li>Permettre la restauration de vos donnees en cas de changement d'appareil.</li>
+      <li>Ameliorer l'application via les retours utilisateurs.</li>
+    </ul>
+
+    <h2>Stockage et conservation</h2>
+    <p>
+      Une partie des donnees est stockee localement sur votre appareil (localStorage / cache applicatif).
+      Certaines donnees techniques peuvent etre stockees sur le serveur de l'application pour les fonctions push,
+      feedback et sauvegarde. Les sauvegardes sont chiffrees cote serveur.
+    </p>
+
+    <h2>Partage des donnees</h2>
+    <p>
+      Les donnees ne sont pas revendues. Elles ne sont partagees qu'avec les prestataires techniques necessaires
+      a l'hebergement et a l'envoi des notifications (ex: hebergeur, services web push), dans la limite du besoin.
+    </p>
+
+    <h2>Vos droits</h2>
+    <ul>
+      <li>Vous pouvez desactiver les notifications a tout moment dans l'application ou le navigateur.</li>
+      <li>Vous pouvez supprimer les donnees locales via les parametres du navigateur.</li>
+      <li>Vous pouvez demander suppression/export des donnees serveur associees a votre usage.</li>
+    </ul>
+
+    <h2>Contact</h2>
+    <p>
+      Pour toute question relative a la confidentialite, utilisez le formulaire de contact de l'application
+      ou remplacez cette section par une adresse email dediee (ex: privacy@votre-domaine.com).
+    </p>
+
+    <p><a href="./index.html">Retour a l'application</a></p>
+  </main>
+</body>
+</html>

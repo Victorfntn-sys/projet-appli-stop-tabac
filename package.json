@@ -10,6 +10,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
+    "check:release": "node scripts/check-release.js",
     "generate:vapid": "node -e \"const webpush=require('web-push');console.log(JSON.stringify(webpush.generateVAPIDKeys(), null, 2));\"",
     "twa:doctor": "bubblewrap doctor",
     "twa:update": "bubblewrap update",

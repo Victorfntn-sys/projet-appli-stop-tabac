@@ -753,21 +753,6 @@ strong {
         <button id="pauseToggleButton" type="button" class="secondary-button">Mettre en pause</button>
       </div>
       <p id="trackingStatus" class="tracking-status">Suivi actif.</p>
-      <p id="backupStatus" class="backup-status" aria-live="polite">Sauvegarde auto: initialisation...</p>
-      <div class="backup-tools">
-        <h3>Securite et restauration</h3>
-        <div class="backup-row">
-          <input id="backupRecoveryKey" type="text" aria-label="Cle de recuperation" autocomplete="off" spellcheck="false" />
-          <button id="backupCopyKeyButton" type="button" class="ghost-button">Copier la cle</button>
-        </div>
-        <div class="backup-row">
-          <select id="backupVersionSelect" aria-label="Versions de sauvegarde">
-            <option value="">Derniere version</option>
-          </select>
-          <button id="backupRestoreVersionButton" type="button" class="secondary-button">Restaurer</button>
-        </div>
-        <p class="backup-hint">Conserve cette cle: elle protege tes sauvegardes et permet la restauration sur un autre appareil.</p>
-      </div>
       <div class="notification-note">
         <label class="switch" for="notificationToggle">
           <input id="notificationToggle" type="checkbox" />
@@ -933,6 +918,7 @@ strong {
       <ul class="link-list">
         <li><a href="https://www.tabac-info-service.fr/" target="_blank" rel="noopener noreferrer">Tabac Info Service</a> - aide gratuite pour arrêter de fumer.</li>
         <li><a href="https://www.santepubliquefrance.fr/" target="_blank" rel="noopener noreferrer">Santé publique France</a> - informations sanitaires officielles.</li>
+        <li><a href="./privacy.html" target="_blank" rel="noopener">Politique de confidentialite</a> - details sur les donnees traitees par l'application.</li>
       </ul>
     </section>
 
@@ -949,6 +935,13 @@ strong {
         <button id="feedbackSendButton" type="submit">Envoyer mon idée</button>
         <p id="feedbackStatus" class="feedback-status" aria-live="polite"></p>
       </form>
+    </section>
+
+    <section class="card links-card" aria-label="Informations legales">
+      <h2>Informations legales</h2>
+      <ul class="link-list">
+        <li><a href="./privacy.html" target="_blank" rel="noopener">Consulter la politique de confidentialite</a></li>
+      </ul>
     </section>
   </main>
 
