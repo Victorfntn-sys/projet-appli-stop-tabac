@@ -1,5 +1,46 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="104" fill="#2f7cff"/>
-  <path d="M256 76c80 0 144 64 144 144 0 104-74 170-144 218-70-48-144-114-144-218 0-80 64-144 144-144Z" fill="#ffffff" opacity="0.18"/>
-  <path d="M194 261l39 39 85-99" fill="none" stroke="#ffffff" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  <defs>
+    <linearGradient id="bg" x1="58" y1="44" x2="454" y2="470" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f766e"/>
+      <stop offset="0.55" stop-color="#1d8f84"/>
+      <stop offset="1" stop-color="#2f7cff"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(144 120) rotate(52) scale(320)">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="coin" x1="160" y1="210" x2="353" y2="352" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#dbf3ed"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="126" y1="114" x2="382" y2="177" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#e2e8f0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="110" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="110" fill="url(#glow)"/>
+
+  <circle cx="400" cy="92" r="42" fill="#ffffff" opacity="0.09"/>
+  <circle cx="82" cy="406" r="58" fill="#ffffff" opacity="0.08"/>
+
+  <g>
+    <rect x="124" y="112" width="116" height="42" rx="21" fill="url(#accent)"/>
+    <rect x="272" y="112" width="116" height="42" rx="21" fill="url(#accent)"/>
+    <rect x="358" y="112" width="30" height="42" rx="16" fill="#f97316"/>
+    <rect x="346" y="112" width="14" height="42" rx="7" fill="#fb7185"/>
+    <path d="M246 116L258 130L246 144L266 154L250 168" fill="none" stroke="#22c55e" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <g>
+    <circle cx="256" cy="286" r="122" fill="url(#coin)"/>
+    <circle cx="256" cy="286" r="122" fill="none" stroke="#94d6c8" stroke-width="10"/>
+
+    <path d="M305 236C292 219 272 209 248 209C204 209 172 243 172 286C172 329 204 363 248 363C272 363 292 353 305 336" fill="none" stroke="#0f766e" stroke-width="18" stroke-linecap="round"/>
+    <path d="M184 267H264" stroke="#0f766e" stroke-width="14" stroke-linecap="round"/>
+    <path d="M184 305H258" stroke="#0f766e" stroke-width="14" stroke-linecap="round"/>
+  </g>
+
+  <path d="M292 366C317 366 338 384 344 408C324 411 295 403 278 385C271 377 266 368 262 358C271 363 281 366 292 366Z" fill="#22c55e"/>
 </svg>
