@@ -1,0 +1,28 @@
+{
+  "packageId": "com.victorfntn.stoptabac",
+  "host": "calculateur-economies-tabac.onrender.com",
+  "name": "Calculateur d'economies",
+  "launcherName": "Stop Tabac",
+  "display": "standalone",
+  "themeColor": "#2f7cff",
+  "navigationColor": "#2f7cff",
+  "navigationColorDark": "#1f5bb8",
+  "backgroundColor": "#f4f8fb",
+  "startUrl": "/index.html",
+  "iconUrl": "https://calculateur-economies-tabac.onrender.com/icon-512.png",
+  "maskableIconUrl": "https://calculateur-economies-tabac.onrender.com/icon-512.png",
+  "monochromeIconUrl": "https://calculateur-economies-tabac.onrender.com/icon-192.png",
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://calculateur-economies-tabac.onrender.com/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://calculateur-economies-tabac.onrender.com/"
+}

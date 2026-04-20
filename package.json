@@ -10,12 +10,19 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "generate:vapid": "node -e \"const webpush=require('web-push');console.log(JSON.stringify(webpush.generateVAPIDKeys(), null, 2));\""
+    "generate:vapid": "node -e \"const webpush=require('web-push');console.log(JSON.stringify(webpush.generateVAPIDKeys(), null, 2));\"",
+    "twa:doctor": "bubblewrap doctor",
+    "twa:update": "bubblewrap update",
+    "twa:build": "bubblewrap build"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
     "exceljs": "^4.4.0",
     "express": "^4.21.2",
     "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@bubblewrap/cli": "^1.24.1",
+    "googleapis": "^171.4.0"
   }
 }

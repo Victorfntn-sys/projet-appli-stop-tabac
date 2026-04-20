@@ -171,6 +171,71 @@ npm run generate:vapid
 npm start
 ```
 
+## Publication sur le Play Store (TWA)
+
+Le projet contient deja `twa-manifest.json` et les scripts Bubblewrap necessaires pour construire une application Android.
+
+### 1. Verifier l'URL publique de production
+
+Avant toute chose, deploie l'application sur une URL HTTPS stable (par exemple Render) et verifie :
+
+- `https://votre-domaine/manifest.webmanifest`
+- `https://votre-domaine/healthz`
+
+### 2. Configurer la verification Android App Links
+
+Ajoute dans les variables d'environnement de production :
+
+```env
+TWA_PACKAGE_NAME=com.victorfntn.stoptabac
+TWA_SHA256_CERT_FINGERPRINTS=AA:BB:CC:...:ZZ
+```
+
+Le serveur expose automatiquement `/.well-known/assetlinks.json` a partir de ces variables. Cette etape est obligatoire pour une TWA valide sur le Play Store.
+
+### 3. Generer le keystore de release (une seule fois)
+
+Exemple de commande (Java requis) :
+
+```bash
+keytool -genkeypair -v -storetype PKCS12 -keystore release-keystore.jks -alias release-key -keyalg RSA -keysize 2048 -validity 10000
+```
+
+Recupere ensuite l'empreinte SHA-256 :
+
+```bash
+keytool -list -v -keystore release-keystore.jks -alias release-key
+```
+
+Copie l'empreinte dans `TWA_SHA256_CERT_FINGERPRINTS` (format avec `:`).
+
+### 4. Construire l'app Android
+
+Depuis le projet :
+
+```bash
+npm run twa:doctor
+npm run twa:update
+npm run twa:build
+```
+
+Bubblewrap genere le projet Android et produit un bundle `.aab` de release.
+
+### 5. Publier dans la Play Console
+
+1. Cree une application dans Google Play Console
+2. Complete fiche store, icone 512x512, captures, politique de confidentialite
+3. Importe le fichier `.aab` genere
+4. Corrige les alertes de pre-lancement si besoin
+5. Lance la publication en production
+
+### 6. Point de controle avant soumission
+
+- l'URL HTTPS de production est definitive
+- `/.well-known/assetlinks.json` retourne bien ton package + fingerprint
+- les permissions et la fiche store correspondent au comportement reel de l'app
+- tests sur un appareil Android reel effectues
+
 ## Verification apres publication
 
 1. Ouvrir l'URL HTTPS publique

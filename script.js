@@ -406,7 +406,7 @@ async function handleFeedbackSubmit(event) {
     const response = await fetch('/api/feedback', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, contact }),
+      body: JSON.stringify({ message, contact, clientId }),
     });
 
     if (!response.ok) {

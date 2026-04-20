@@ -18,6 +18,11 @@ const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '';
 const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:contact@example.com';
 const feedbackWebhookUrl = process.env.FEEDBACK_WEBHOOK_URL || '';
 const exportAdminKey = process.env.EXPORT_ADMIN_KEY || '';
+const twaPackageName = process.env.TWA_PACKAGE_NAME || 'com.victorfntn.stoptabac';
+const twaSha256Fingerprints = (process.env.TWA_SHA256_CERT_FINGERPRINTS || '')
+  .split(',')
+  .map(value => value.trim())
+  .filter(Boolean);
 
 if (vapidPublicKey && vapidPrivateKey) {
   webPush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
@@ -73,30 +78,59 @@ async function ensureUserStatesCsvFile() {
 
 async function ensureUserStatesXlsxFile() {
   await fs.mkdir(dataDir, { recursive: true });
+  const workbook = new ExcelJS.Workbook();
+  let fileExists = true;
+
   try {
     await fs.access(userStatesXlsxFile);
+    await workbook.xlsx.readFile(userStatesXlsxFile);
   } catch {
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('UserStates');
-    worksheet.columns = [
-      { header: 'createdAt', key: 'createdAt', width: 28 },
-      { header: 'clientId', key: 'clientId', width: 38 },
-      { header: 'quitDate', key: 'quitDate', width: 14 },
-      { header: 'cigsPerDay', key: 'cigsPerDay', width: 12 },
-      { header: 'cigsPerPack', key: 'cigsPerPack', width: 12 },
-      { header: 'pricePerPack', key: 'pricePerPack', width: 14 },
-      { header: 'goalName', key: 'goalName', width: 26 },
-      { header: 'goalAmount', key: 'goalAmount', width: 14 },
-      { header: 'isPaused', key: 'isPaused', width: 10 },
-      { header: 'pausedDaysTotal', key: 'pausedDaysTotal', width: 16 },
-      { header: 'daysWithoutSmoking', key: 'daysWithoutSmoking', width: 18 },
-      { header: 'savedCigarettes', key: 'savedCigarettes', width: 16 },
-      { header: 'savedMoney', key: 'savedMoney', width: 14 },
-      { header: 'dailyCost', key: 'dailyCost', width: 12 },
-      { header: 'source', key: 'source', width: 28 },
-      { header: 'userAgent', key: 'userAgent', width: 48 },
-    ];
-    worksheet.getRow(1).font = { bold: true };
+    fileExists = false;
+  }
+
+  let workbookChanged = false;
+
+  let userStatesWorksheet = workbook.getWorksheet('UserStates');
+  if (!userStatesWorksheet) {
+    userStatesWorksheet = workbook.addWorksheet('UserStates');
+    workbookChanged = true;
+  }
+  userStatesWorksheet.columns = [
+    { header: 'createdAt', key: 'createdAt', width: 28 },
+    { header: 'clientId', key: 'clientId', width: 38 },
+    { header: 'quitDate', key: 'quitDate', width: 14 },
+    { header: 'cigsPerDay', key: 'cigsPerDay', width: 12 },
+    { header: 'cigsPerPack', key: 'cigsPerPack', width: 12 },
+    { header: 'pricePerPack', key: 'pricePerPack', width: 14 },
+    { header: 'goalName', key: 'goalName', width: 26 },
+    { header: 'goalAmount', key: 'goalAmount', width: 14 },
+    { header: 'isPaused', key: 'isPaused', width: 10 },
+    { header: 'pausedDaysTotal', key: 'pausedDaysTotal', width: 16 },
+    { header: 'daysWithoutSmoking', key: 'daysWithoutSmoking', width: 18 },
+    { header: 'savedCigarettes', key: 'savedCigarettes', width: 16 },
+    { header: 'savedMoney', key: 'savedMoney', width: 14 },
+    { header: 'dailyCost', key: 'dailyCost', width: 12 },
+    { header: 'source', key: 'source', width: 28 },
+    { header: 'userAgent', key: 'userAgent', width: 48 },
+  ];
+  userStatesWorksheet.getRow(1).font = { bold: true };
+
+  let feedbackWorksheet = workbook.getWorksheet('Feedback');
+  if (!feedbackWorksheet) {
+    feedbackWorksheet = workbook.addWorksheet('Feedback');
+    workbookChanged = true;
+  }
+  feedbackWorksheet.columns = [
+    { header: 'createdAt', key: 'createdAt', width: 28 },
+    { header: 'clientId', key: 'clientId', width: 38 },
+    { header: 'message', key: 'message', width: 80 },
+    { header: 'contact', key: 'contact', width: 38 },
+    { header: 'source', key: 'source', width: 28 },
+    { header: 'userAgent', key: 'userAgent', width: 48 },
+  ];
+  feedbackWorksheet.getRow(1).font = { bold: true };
+
+  if (!fileExists || workbookChanged) {
     await workbook.xlsx.writeFile(userStatesXlsxFile);
   }
 }
@@ -193,6 +227,37 @@ async function appendUserStateXlsxRow(entry) {
     savedCigarettes: entry.savedCigarettes,
     savedMoney: entry.savedMoney,
     dailyCost: entry.dailyCost,
+    source: entry.source,
+    userAgent: entry.userAgent,
+  });
+
+  await workbook.xlsx.writeFile(userStatesXlsxFile);
+}
+
+async function appendFeedbackXlsxRow(entry) {
+  await ensureUserStatesXlsxFile();
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(userStatesXlsxFile);
+
+  let worksheet = workbook.getWorksheet('Feedback');
+  if (!worksheet) {
+    worksheet = workbook.addWorksheet('Feedback');
+    worksheet.columns = [
+      { header: 'createdAt', key: 'createdAt', width: 28 },
+      { header: 'clientId', key: 'clientId', width: 38 },
+      { header: 'message', key: 'message', width: 80 },
+      { header: 'contact', key: 'contact', width: 38 },
+      { header: 'source', key: 'source', width: 28 },
+      { header: 'userAgent', key: 'userAgent', width: 48 },
+    ];
+    worksheet.getRow(1).font = { bold: true };
+  }
+
+  worksheet.addRow({
+    createdAt: entry.createdAt,
+    clientId: entry.clientId,
+    message: entry.message,
+    contact: entry.contact,
     source: entry.source,
     userAgent: entry.userAgent,
   });
@@ -385,6 +450,7 @@ app.post('/api/feedback', async (req, res) => {
   try {
     const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
     const contact = typeof req.body?.contact === 'string' ? req.body.contact.trim() : '';
+    const clientId = typeof req.body?.clientId === 'string' ? req.body.clientId.trim().slice(0, 80) : '';
 
     if (!message || message.length < 5) {
       res.status(400).json({ error: 'message-too-short' });
@@ -405,6 +471,7 @@ app.post('/api/feedback', async (req, res) => {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       message,
       contact,
+      clientId,
       createdAt: new Date().toISOString(),
       userAgent: req.get('user-agent') || '',
       source: req.get('origin') || req.get('host') || '',
@@ -413,6 +480,7 @@ app.post('/api/feedback', async (req, res) => {
     const entries = await readFeedbackEntries();
     entries.push(entry);
     await writeFeedbackEntries(entries);
+    await appendFeedbackXlsxRow(entry);
 
     if (feedbackWebhookUrl) {
       fetch(feedbackWebhookUrl, {
@@ -495,6 +563,27 @@ app.get('/api/user-state/export-all.xlsx', async (req, res) => {
   } catch {
     res.status(500).json({ error: 'user-state-export-failed' });
   }
+});
+
+app.get('/.well-known/assetlinks.json', (req, res) => {
+  if (!twaPackageName || twaSha256Fingerprints.length === 0) {
+    res.status(404).json({
+      error: 'asset-links-not-configured',
+      hint: 'Set TWA_PACKAGE_NAME and TWA_SHA256_CERT_FINGERPRINTS in environment variables.',
+    });
+    return;
+  }
+
+  res.json([
+    {
+      relation: ['delegate_permission/common.handle_all_urls'],
+      target: {
+        namespace: 'android_app',
+        package_name: twaPackageName,
+        sha256_cert_fingerprints: twaSha256Fingerprints,
+      },
+    },
+  ]);
 });
 
 app.get('*', (req, res) => {
