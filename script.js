@@ -13,6 +13,10 @@ const STORAGE_CLIENT_ID = 'stop-smoking-clientId';
 const STORAGE_IS_PREMIUM = 'stop-smoking-is-premium';
 const STORAGE_APP_OPEN_COUNT = 'stop-smoking-app-open-count';
 const STORAGE_LAST_LAUNCH_AD_AT = 'stop-smoking-last-launch-ad-at';
+const STORAGE_ONBOARDING_DONE = 'stop-smoking-onboarding-done';
+const STORAGE_CRAVING_SESSION_COUNT = 'stop-smoking-craving-session-count';
+const STORAGE_NOTIFICATION_PREFS = 'stop-smoking-notification-preferences';
+const STORAGE_ANALYTICS_EVENTS = 'stop-smoking-analytics-events';
 const cigarettesPerDay = document.getElementById('cigarettesPerDay');
 const pricePerPack = document.getElementById('pricePerPack');
 const cigarettesPerPack = document.getElementById('cigarettesPerPack');
@@ -45,6 +49,12 @@ const updateReloadButton = document.getElementById('updateReloadButton');
 const updateLaterButton = document.getElementById('updateLaterButton');
 const notificationToggle = document.getElementById('notificationToggle');
 const notificationStatus = document.getElementById('notificationStatus');
+const notificationFrequency = document.getElementById('notificationFrequency');
+const notificationReminderTime = document.getElementById('notificationReminderTime');
+const notificationQuietStart = document.getElementById('notificationQuietStart');
+const notificationQuietEnd = document.getElementById('notificationQuietEnd');
+const notificationTone = document.getElementById('notificationTone');
+const notificationWeeklyDay = document.getElementById('notificationWeeklyDay');
 const resultCard = document.querySelector('.result-card');
 const savingsProjection = document.getElementById('savingsProjection');
 const appLoadingScreen = document.getElementById('appLoadingScreen');
@@ -58,6 +68,23 @@ const launchAdModal = document.getElementById('launchAdModal');
 const launchAdClose = document.getElementById('launchAdClose');
 const launchAdCountdown = document.getElementById('launchAdCountdown');
 const launchAdSlot = document.getElementById('launchAdSlot');
+const onboardingModal = document.getElementById('onboardingModal');
+const onboardingProgressLabel = document.getElementById('onboardingProgressLabel');
+const onboardingProgressFill = document.getElementById('onboardingProgressFill');
+const onboardingSkipButton = document.getElementById('onboardingSkipButton');
+const onboardingBackButton = document.getElementById('onboardingBackButton');
+const onboardingNextButton = document.getElementById('onboardingNextButton');
+const onboardingNotificationOptIn = document.getElementById('onboardingNotificationOptIn');
+const onboardingCigarettesPerDay = document.getElementById('onboardingCigarettesPerDay');
+const onboardingPricePerPack = document.getElementById('onboardingPricePerPack');
+const onboardingQuitDate = document.getElementById('onboardingQuitDate');
+const onboardingSteps = Array.from(document.querySelectorAll('.onboarding-step'));
+const startCravingButton = document.getElementById('startCravingButton');
+const cravingDoneButton = document.getElementById('cravingDoneButton');
+const cravingTimer = document.getElementById('cravingTimer');
+const cravingStatus = document.getElementById('cravingStatus');
+const cravingTip = document.getElementById('cravingTip');
+const cravingSessionCount = document.getElementById('cravingSessionCount');
 const ADMOB_APP_ID = 'ca-app-pub-4442230652158494~6410750898';
 const ADMOB_UNIT_ID = 'ca-app-pub-4442230652158494/1158424217';
 let lastPackCount = 0;
@@ -73,11 +100,16 @@ let userExcelSyncTimeoutId = null;
 let lastUserExcelPayloadKey = '';
 let launchAdAutoCloseTimeoutId = null;
 let launchAdCountdownIntervalId = null;
+let onboardingStepIndex = 0;
+let cravingIntervalId = null;
+let cravingSecondsLeft = 180;
 const PUSH_STATE_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 const SERVICE_WORKER_UPDATE_CHECK_INTERVAL_MS = 60 * 1000;
 const LAUNCH_AD_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 const LAUNCH_AD_SHOW_EVERY_N_OPENS = 3;
 const LAUNCH_AD_AUTO_CLOSE_SECONDS = 5;
+const CRAVING_SESSION_DURATION_SECONDS = 180;
+const MAX_ANALYTICS_EVENTS = 200;
 let trackingState = {
   isPaused: false,
   pauseStartedAt: null,
@@ -91,6 +123,23 @@ const pauseEncouragementMessages = [
   'Rappelle-toi pourquoi tu as commence. Aujourd\'hui compte vraiment.',
   'Tu construis une meilleure version de toi, un jour apres l\'autre.',
 ];
+
+const cravingTips = [
+  'Bois un verre d\'eau lentement puis respire 4 fois profondement.',
+  'Marche 3 minutes, meme dans la piece. Le pic d\'envie baisse vite.',
+  'Occupe tes mains: stylo, balle antistress, ou notes sur ton objectif.',
+  'Repete: "Cette envie va passer". Attends simplement 180 secondes.',
+  'Fais 10 respirations lentes: 4 secondes inspiration, 6 secondes expiration.',
+];
+
+const defaultNotificationPrefs = {
+  frequency: 'daily',
+  reminderTime: '09:00',
+  quietStart: '21:30',
+  quietEnd: '08:00',
+  tone: 'supportive',
+  weeklyDay: '1',
+};
 
 const healthMilestones = [
   { days: 0, message: 'Chaque heure compte. Votre corps commence déjà à réparer.' },
@@ -263,6 +312,163 @@ function saveNotificationsEnabled(value) {
   }
 }
 
+function trackEvent(name, meta = {}) {
+  try {
+    const current = JSON.parse(localStorage.getItem(STORAGE_ANALYTICS_EVENTS) || '[]');
+    const next = Array.isArray(current) ? current : [];
+    next.push({
+      name,
+      meta,
+      clientId,
+      at: new Date().toISOString(),
+    });
+    if (next.length > MAX_ANALYTICS_EVENTS) {
+      next.splice(0, next.length - MAX_ANALYTICS_EVENTS);
+    }
+    localStorage.setItem(STORAGE_ANALYTICS_EVENTS, JSON.stringify(next));
+  } catch {
+    // ignore analytics storage failures
+  }
+}
+
+function getStoredNotificationPrefs() {
+  try {
+    const raw = localStorage.getItem(STORAGE_NOTIFICATION_PREFS);
+    if (!raw) {
+      return { ...defaultNotificationPrefs };
+    }
+    const parsed = JSON.parse(raw);
+    return {
+      frequency: parsed.frequency || defaultNotificationPrefs.frequency,
+      reminderTime: parsed.reminderTime || defaultNotificationPrefs.reminderTime,
+      quietStart: parsed.quietStart || defaultNotificationPrefs.quietStart,
+      quietEnd: parsed.quietEnd || defaultNotificationPrefs.quietEnd,
+      tone: parsed.tone || defaultNotificationPrefs.tone,
+      weeklyDay: String(parsed.weeklyDay ?? defaultNotificationPrefs.weeklyDay),
+    };
+  } catch {
+    return { ...defaultNotificationPrefs };
+  }
+}
+
+function saveNotificationPrefs(prefs) {
+  try {
+    localStorage.setItem(STORAGE_NOTIFICATION_PREFS, JSON.stringify(prefs));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function parseTimeStringToMinutes(value) {
+  const match = /^(\d{2}):(\d{2})$/.exec(String(value || '').trim());
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    return null;
+  }
+  return (hours * 60) + minutes;
+}
+
+function isWithinQuietHours(nowDate, quietStart, quietEnd) {
+  const startMinutes = parseTimeStringToMinutes(quietStart);
+  const endMinutes = parseTimeStringToMinutes(quietEnd);
+  if (startMinutes === null || endMinutes === null || startMinutes === endMinutes) {
+    return false;
+  }
+
+  const nowMinutes = (nowDate.getHours() * 60) + nowDate.getMinutes();
+  if (startMinutes < endMinutes) {
+    return nowMinutes >= startMinutes && nowMinutes < endMinutes;
+  }
+
+  return nowMinutes >= startMinutes || nowMinutes < endMinutes;
+}
+
+function isNotificationTimeAllowed(nowDate = new Date()) {
+  const prefs = getCurrentNotificationPrefs();
+  if (!prefs) {
+    return true;
+  }
+
+  if (isWithinQuietHours(nowDate, prefs.quietStart, prefs.quietEnd)) {
+    return false;
+  }
+
+  const day = nowDate.getDay();
+  if (prefs.frequency === 'weekdays' && (day === 0 || day === 6)) {
+    return false;
+  }
+  if (prefs.frequency === 'weekly' && String(day) !== String(prefs.weeklyDay)) {
+    return false;
+  }
+
+  return true;
+}
+
+function isWithinReminderWindow(nowDate = new Date()) {
+  const prefs = getCurrentNotificationPrefs();
+  const reminderMinutes = parseTimeStringToMinutes(prefs.reminderTime);
+  if (reminderMinutes === null) {
+    return true;
+  }
+  const nowMinutes = (nowDate.getHours() * 60) + nowDate.getMinutes();
+  return Math.abs(nowMinutes - reminderMinutes) <= 10;
+}
+
+function getCurrentNotificationPrefs() {
+  return {
+    frequency: notificationFrequency?.value || defaultNotificationPrefs.frequency,
+    reminderTime: notificationReminderTime?.value || defaultNotificationPrefs.reminderTime,
+    quietStart: notificationQuietStart?.value || defaultNotificationPrefs.quietStart,
+    quietEnd: notificationQuietEnd?.value || defaultNotificationPrefs.quietEnd,
+    tone: notificationTone?.value || defaultNotificationPrefs.tone,
+    weeklyDay: notificationWeeklyDay?.value || defaultNotificationPrefs.weeklyDay,
+  };
+}
+
+function applyNotificationPrefsToInputs() {
+  const prefs = getStoredNotificationPrefs();
+  if (notificationFrequency) {
+    notificationFrequency.value = prefs.frequency;
+  }
+  if (notificationReminderTime) {
+    notificationReminderTime.value = prefs.reminderTime;
+  }
+  if (notificationQuietStart) {
+    notificationQuietStart.value = prefs.quietStart;
+  }
+  if (notificationQuietEnd) {
+    notificationQuietEnd.value = prefs.quietEnd;
+  }
+  if (notificationTone) {
+    notificationTone.value = prefs.tone;
+  }
+  if (notificationWeeklyDay) {
+    notificationWeeklyDay.value = prefs.weeklyDay;
+  }
+}
+
+function persistNotificationPrefsFromInputs() {
+  const prefs = getCurrentNotificationPrefs();
+  saveNotificationPrefs(prefs);
+  updateNotificationStatus('Notification' in window ? Notification.permission : 'unsupported');
+  syncPushState();
+  trackEvent('notification_preferences_updated', prefs);
+}
+
+function getStoredBoolean(key, fallbackValue = false) {
+  try {
+    const rawValue = localStorage.getItem(key);
+    if (rawValue === null) {
+      return fallbackValue;
+    }
+    return rawValue === 'true' || rawValue === '1';
+  } catch {
+    return fallbackValue;
+  }
+}
+
 function getStoredInteger(key, fallbackValue = 0) {
   try {
     const rawValue = localStorage.getItem(key);
@@ -312,6 +518,237 @@ function closeLaunchAd() {
   launchAdModal.classList.remove('open');
   launchAdModal.setAttribute('aria-hidden', 'true');
   document.body.style.overflow = '';
+}
+
+function saveOnboardingDone(value) {
+  try {
+    localStorage.setItem(STORAGE_ONBOARDING_DONE, value ? 'true' : 'false');
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function shouldShowOnboarding() {
+  if (!onboardingModal || getStoredBoolean(STORAGE_ONBOARDING_DONE, false)) {
+    return false;
+  }
+
+  const hasExistingData = Boolean(
+    getStoredQuitDate()
+    || getStoredFieldValue(STORAGE_CIGARETTES_PER_DAY)
+    || getStoredFieldValue(STORAGE_PRICE_PER_PACK)
+    || getStoredFieldValue(STORAGE_CIGARETTES_PER_PACK)
+    || getStoredFieldValue(STORAGE_GOAL_NAME)
+    || getStoredFieldValue(STORAGE_GOAL_AMOUNT)
+  );
+
+  if (hasExistingData) {
+    saveOnboardingDone(true);
+    return false;
+  }
+
+  return true;
+}
+
+function renderOnboardingStep() {
+  if (!onboardingSteps.length) {
+    return;
+  }
+
+  const safeIndex = Math.max(0, Math.min(onboardingSteps.length - 1, onboardingStepIndex));
+  onboardingStepIndex = safeIndex;
+
+  onboardingSteps.forEach((step, index) => {
+    const isActive = index === safeIndex;
+    step.classList.toggle('active', isActive);
+    step.hidden = !isActive;
+  });
+
+  const total = onboardingSteps.length;
+  const current = safeIndex + 1;
+  if (onboardingProgressLabel) {
+    onboardingProgressLabel.textContent = `Etape ${current} sur ${total}`;
+  }
+  if (onboardingProgressFill) {
+    onboardingProgressFill.style.width = `${Math.round((current / total) * 100)}%`;
+  }
+
+  if (onboardingBackButton) {
+    onboardingBackButton.hidden = safeIndex === 0;
+  }
+
+  if (onboardingNextButton) {
+    onboardingNextButton.textContent = safeIndex >= total - 1 ? 'Commencer' : 'Continuer';
+  }
+}
+
+function applyOnboardingValues() {
+  const cigsPerDayValue = String(onboardingCigarettesPerDay?.value || '').trim();
+  const pricePerPackValue = String(onboardingPricePerPack?.value || '').trim();
+  const quitDateValue = String(onboardingQuitDate?.value || '').trim();
+
+  if (cigsPerDayValue) {
+    cigarettesPerDay.value = cigsPerDayValue;
+    saveFieldValue(STORAGE_CIGARETTES_PER_DAY, cigsPerDayValue);
+  }
+
+  if (pricePerPackValue) {
+    const normalizedPriceValue = pricePerPackValue.replace(/[^0-9,]/g, '');
+    pricePerPack.value = normalizedPriceValue;
+    saveFieldValue(STORAGE_PRICE_PER_PACK, normalizedPriceValue);
+  }
+
+  if (quitDateValue) {
+    quitDate.value = quitDateValue;
+    saveQuitDate(quitDateValue);
+  }
+
+  if (onboardingNotificationOptIn?.checked) {
+    notificationsEnabled = true;
+    saveNotificationsEnabled(true);
+    if (notificationToggle) {
+      notificationToggle.checked = true;
+    }
+    requestNotificationPermission();
+  }
+
+  calculateSavings();
+}
+
+function openOnboarding() {
+  if (!onboardingModal) {
+    return;
+  }
+
+  onboardingStepIndex = 0;
+  const todayIso = new Date().toISOString().split('T')[0];
+  if (onboardingCigarettesPerDay) {
+    onboardingCigarettesPerDay.value = String(cigarettesPerDay.value || '10');
+  }
+  if (onboardingPricePerPack) {
+    onboardingPricePerPack.value = String(pricePerPack.value || '13,00');
+  }
+  if (onboardingQuitDate) {
+    onboardingQuitDate.value = String(quitDate.value || todayIso);
+  }
+
+  renderOnboardingStep();
+  onboardingModal.classList.add('open');
+  onboardingModal.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeOnboarding({ completed = false } = {}) {
+  if (!onboardingModal) {
+    return;
+  }
+
+  if (completed) {
+    applyOnboardingValues();
+    trackEvent('onboarding_completed');
+  } else {
+    trackEvent('onboarding_skipped');
+  }
+
+  saveOnboardingDone(true);
+  onboardingModal.classList.remove('open');
+  onboardingModal.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+}
+
+function updateCravingSessionCountLabel() {
+  if (!cravingSessionCount) {
+    return;
+  }
+  const sessions = getStoredInteger(STORAGE_CRAVING_SESSION_COUNT, 0);
+  cravingSessionCount.textContent = `${sessions} session${sessions > 1 ? 's' : ''} reussie${sessions > 1 ? 's' : ''}`;
+}
+
+function formatCravingTimer(totalSeconds) {
+  const safeSeconds = Math.max(0, Number(totalSeconds) || 0);
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function clearCravingTimer() {
+  if (cravingIntervalId) {
+    clearInterval(cravingIntervalId);
+    cravingIntervalId = null;
+  }
+}
+
+function updateCravingUiIdle(message = 'Pret a demarrer une session anti-craving.') {
+  if (cravingTimer) {
+    cravingTimer.textContent = formatCravingTimer(CRAVING_SESSION_DURATION_SECONDS);
+  }
+  if (cravingStatus) {
+    cravingStatus.textContent = message;
+  }
+  if (startCravingButton) {
+    startCravingButton.disabled = false;
+    startCravingButton.textContent = 'Demarrer 3 minutes';
+  }
+  if (cravingDoneButton) {
+    cravingDoneButton.hidden = true;
+  }
+}
+
+function finishCravingSession({ success }) {
+  clearCravingTimer();
+  cravingSecondsLeft = CRAVING_SESSION_DURATION_SECONDS;
+
+  if (success) {
+    const sessions = getStoredInteger(STORAGE_CRAVING_SESSION_COUNT, 0) + 1;
+    saveInteger(STORAGE_CRAVING_SESSION_COUNT, sessions);
+    updateCravingSessionCountLabel();
+    updateCravingUiIdle('Excellent. Cette envie est passee, tu gardes le controle.');
+    sendNotification('Bravo ! Une envie de plus depassee sans cigarette.');
+    trackEvent('craving_session_completed');
+  } else {
+    updateCravingUiIdle();
+    trackEvent('craving_session_cancelled');
+  }
+}
+
+function startCravingSession() {
+  if (!startCravingButton || cravingIntervalId) {
+    return;
+  }
+
+  trackEvent('craving_session_started');
+
+  cravingSecondsLeft = CRAVING_SESSION_DURATION_SECONDS;
+  startCravingButton.disabled = true;
+  startCravingButton.textContent = 'Session en cours...';
+  if (cravingDoneButton) {
+    cravingDoneButton.hidden = false;
+  }
+  if (cravingTip) {
+    const tip = cravingTips[Math.floor(Math.random() * cravingTips.length)];
+    cravingTip.textContent = `Action: ${tip}`;
+  }
+
+  if (cravingStatus) {
+    cravingStatus.textContent = 'Respire et laisse passer le pic. Tu geres minute par minute.';
+  }
+
+  if (cravingTimer) {
+    cravingTimer.textContent = formatCravingTimer(cravingSecondsLeft);
+  }
+
+  clearCravingTimer();
+  cravingIntervalId = window.setInterval(() => {
+    cravingSecondsLeft -= 1;
+
+    if (cravingTimer) {
+      cravingTimer.textContent = formatCravingTimer(cravingSecondsLeft);
+    }
+
+    if (cravingSecondsLeft <= 0) {
+      finishCravingSession({ success: true });
+    }
+  }, 1000);
 }
 
 function openLaunchAd() {
@@ -442,6 +879,8 @@ function getCurrentUserState() {
     isPaused: trackingState.isPaused,
     pauseStartedAt: trackingState.pauseStartedAt,
     pausedDaysTotal: trackingState.pausedDaysTotal,
+    notificationPrefs: getCurrentNotificationPrefs(),
+    timezoneOffsetMinutes: new Date().getTimezoneOffset(),
   };
 }
 
@@ -566,6 +1005,15 @@ function maybeSendPauseEncouragement() {
   if (!('Notification' in window) || Notification.permission !== 'granted') {
     return;
   }
+
+  if (!isNotificationTimeAllowed(new Date())) {
+    return;
+  }
+
+  if (!isWithinReminderWindow(new Date())) {
+    return;
+  }
+
   const todayIso = getTodayIso();
   const lastSentDate = getStoredLastPauseEncouragement();
   if (lastSentDate === todayIso) {
@@ -943,8 +1391,16 @@ function updateNotificationStatus(permission) {
     notificationToggle.disabled = false;
     return;
   }
+
+  const prefs = getCurrentNotificationPrefs();
+  const frequencyLabel = prefs.frequency === 'weekdays'
+    ? 'jours ouvres'
+    : prefs.frequency === 'weekly'
+      ? `hebdo (${['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'][Number(prefs.weeklyDay) || 0]})`
+      : 'quotidienne';
+
   if (permission === 'granted') {
-    setNotificationMessage('Notifications actives, y compris via le service worker si le push est configuré.');
+    setNotificationMessage(`Notifications actives (${frequencyLabel}, rappel ${prefs.reminderTime}, silence ${prefs.quietStart}-${prefs.quietEnd}).`);
     notificationToggle.checked = true;
     notificationToggle.disabled = false;
   } else if (permission === 'denied') {
@@ -1056,12 +1512,14 @@ notificationToggle.addEventListener('change', () => {
   if (notificationToggle.checked) {
     notificationsEnabled = true;
     saveNotificationsEnabled(true);
+    trackEvent('notification_toggle_enabled');
     requestNotificationPermission();
     subscribeToPushNotifications().then(syncPushState);
     maybeSendPauseEncouragement();
   } else {
     notificationsEnabled = false;
     saveNotificationsEnabled(false);
+    trackEvent('notification_toggle_disabled');
     updateNotificationStatus(Notification.permission);
     unsubscribeFromPushNotifications();
   }
@@ -1071,10 +1529,17 @@ async function sendNotification(message) {
   if (!notificationsEnabled || !('Notification' in window) || Notification.permission !== 'granted') {
     return;
   }
+  if (!isNotificationTimeAllowed(new Date())) {
+    return;
+  }
+
+  const prefs = getCurrentNotificationPrefs();
+  const finalMessage = prefs.tone === 'direct' ? message.replace('Bravo', 'Continue') : message;
+
   try {
     if (serviceWorkerRegistration) {
       await serviceWorkerRegistration.showNotification('Calculateur d\'economies', {
-        body: message,
+        body: finalMessage,
         tag: 'stop-smoking-app',
         renotify: true,
         badge: './icon-192.svg',
@@ -1082,7 +1547,7 @@ async function sendNotification(message) {
       });
       return;
     }
-    new Notification(message);
+    new Notification(finalMessage);
   } catch (error) {
     console.warn('Notification non envoyée', error);
   }
@@ -1125,6 +1590,27 @@ launchAdModal?.addEventListener('click', event => {
     closeLaunchAd();
   }
 });
+onboardingSkipButton?.addEventListener('click', () => closeOnboarding({ completed: false }));
+onboardingBackButton?.addEventListener('click', () => {
+  onboardingStepIndex -= 1;
+  renderOnboardingStep();
+});
+onboardingNextButton?.addEventListener('click', () => {
+  if (onboardingStepIndex >= onboardingSteps.length - 1) {
+    closeOnboarding({ completed: true });
+    return;
+  }
+  onboardingStepIndex += 1;
+  renderOnboardingStep();
+});
+startCravingButton?.addEventListener('click', startCravingSession);
+cravingDoneButton?.addEventListener('click', () => finishCravingSession({ success: true }));
+notificationFrequency?.addEventListener('change', persistNotificationPrefsFromInputs);
+notificationReminderTime?.addEventListener('change', persistNotificationPrefsFromInputs);
+notificationQuietStart?.addEventListener('change', persistNotificationPrefsFromInputs);
+notificationQuietEnd?.addEventListener('change', persistNotificationPrefsFromInputs);
+notificationTone?.addEventListener('change', persistNotificationPrefsFromInputs);
+notificationWeeklyDay?.addEventListener('change', persistNotificationPrefsFromInputs);
 
 window.addEventListener('DOMContentLoaded', async () => {
   const startedAt = performance.now();
@@ -1133,6 +1619,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   const serviceWorkerReadyPromise = registerServiceWorker();
   updateAppLoading(28, 'Restauration de vos données...');
   notificationsEnabled = getStoredNotificationsEnabled();
+  applyNotificationPrefsToInputs();
   const storedDate = getStoredQuitDate();
   const storedCigarettesPerDay = getStoredFieldValue(STORAGE_CIGARETTES_PER_DAY);
   const storedPricePerPack = getStoredFieldValue(STORAGE_PRICE_PER_PACK);
@@ -1182,6 +1669,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   startPushStateSyncScheduler();
   startPauseReminderScheduler();
   maybeSendPauseEncouragement();
+  updateCravingSessionCountLabel();
+  updateCravingUiIdle();
+  trackEvent('app_opened', { notificationsEnabled });
 
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
@@ -1295,9 +1785,17 @@ window.addEventListener('DOMContentLoaded', async () => {
   await hideAppLoadingScreen();
 
   if (shouldShowLaunchAdOnStartup()) {
+    if (!shouldShowOnboarding()) {
+      window.setTimeout(() => {
+        openLaunchAd();
+      }, 220);
+    }
+  }
+
+  if (shouldShowOnboarding()) {
     window.setTimeout(() => {
-      openLaunchAd();
-    }, 220);
+      openOnboarding();
+    }, 180);
   }
 
 });

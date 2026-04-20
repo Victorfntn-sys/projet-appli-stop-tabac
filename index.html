@@ -209,6 +209,49 @@ input:focus {
   line-height: 1.2;
 }
 
+.notification-settings {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px dashed #bcded8;
+  border-radius: 14px;
+  background: #f7fcfb;
+}
+
+.notification-settings h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.notification-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.notification-grid label {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.notification-grid select,
+.notification-grid input[type="time"] {
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border: 1px solid #cfe2de;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  color: var(--text);
+  background: #ffffff;
+}
+
+.notification-status {
+  margin-top: 10px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
 .notification-status {
   color: var(--muted);
   font-size: 0.9rem;
@@ -345,6 +388,192 @@ button.is-loading::after {
   color: var(--primary-dark);
 }
 
+.craving-card {
+  border: 1px solid #ffdcb0;
+  background:
+    radial-gradient(120% 120% at 0% 0%, #fff3e4 0%, #fffdf9 48%),
+    linear-gradient(180deg, #fffdf8 0%, #fff7ed 100%);
+}
+
+.craving-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.craving-kicker {
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #a16207;
+  font-weight: 700;
+}
+
+.craving-badge {
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #92400e;
+  background: #ffedd5;
+  border: 1px solid #fdba74;
+}
+
+.craving-timer {
+  margin: 16px 0 8px;
+  font-size: clamp(1.9rem, 4vw, 2.5rem);
+  line-height: 1;
+  font-weight: 800;
+  color: #b45309;
+  font-family: var(--font-display);
+}
+
+.craving-status {
+  font-weight: 700;
+  color: #7c2d12;
+}
+
+.craving-tip {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+  color: #7c2d12;
+  font-size: 0.95rem;
+}
+
+.craving-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.craving-actions button {
+  width: auto;
+  min-width: 170px;
+  margin-top: 0;
+}
+
+.onboarding-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10020;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(10, 20, 28, 0.56);
+  backdrop-filter: blur(3px);
+}
+
+.onboarding-modal.open {
+  display: flex;
+}
+
+.onboarding-panel {
+  width: min(100%, 620px);
+  max-height: 92vh;
+  overflow: auto;
+  border-radius: 24px;
+  background: #ffffff;
+  border: 1px solid #d7ebe7;
+  box-shadow: 0 18px 50px rgba(15, 48, 54, 0.24);
+  padding: 22px;
+}
+
+.onboarding-progress {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.onboarding-progress-label {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.onboarding-progress-track {
+  width: 100%;
+  height: 9px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #dff2ee;
+}
+
+.onboarding-progress-fill {
+  width: 33%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #1d8f84 0%, #2f7cff 100%);
+  transition: width 220ms ease;
+}
+
+.onboarding-step {
+  display: none;
+}
+
+.onboarding-step.active {
+  display: block;
+}
+
+.onboarding-step h3 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 3vw, 1.75rem);
+}
+
+.onboarding-step p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.onboarding-grid {
+  margin-top: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.onboarding-benefits {
+  margin: 14px 0 0;
+  padding-left: 18px;
+  color: var(--text);
+}
+
+.onboarding-benefits li {
+  margin-bottom: 8px;
+}
+
+.onboarding-checkbox {
+  margin-top: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.onboarding-checkbox input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+}
+
+.onboarding-actions {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.onboarding-actions button {
+  width: auto;
+  min-width: 130px;
+  margin-top: 0;
+}
+
 .links-card ul {
   padding-left: 18px;
   margin: 0;
@@ -393,6 +622,15 @@ strong {
     margin-top: 10px;
     font-size: 0.82rem;
     padding: 6px 12px;
+  }
+
+  .craving-actions button,
+  .onboarding-actions button {
+    width: 100%;
+  }
+
+  .notification-grid {
+    grid-template-columns: 1fr;
   }
 }
   </style>
@@ -456,6 +694,45 @@ strong {
         </label>
         <span class="notification-label">Notifications</span>
       </div>
+      <div class="notification-settings">
+        <h3>Personnaliser les rappels</h3>
+        <div class="notification-grid">
+          <label for="notificationFrequency">Fréquence
+            <select id="notificationFrequency">
+              <option value="daily">Tous les jours</option>
+              <option value="weekdays">Jours ouvrés</option>
+              <option value="weekly">Une fois par semaine</option>
+            </select>
+          </label>
+          <label for="notificationReminderTime">Heure préférée
+            <input id="notificationReminderTime" type="time" value="09:00" />
+          </label>
+          <label for="notificationQuietStart">Ne pas déranger - début
+            <input id="notificationQuietStart" type="time" value="21:30" />
+          </label>
+          <label for="notificationQuietEnd">Ne pas déranger - fin
+            <input id="notificationQuietEnd" type="time" value="08:00" />
+          </label>
+          <label for="notificationTone">Ton des messages
+            <select id="notificationTone">
+              <option value="supportive">Encourageant</option>
+              <option value="direct">Direct</option>
+            </select>
+          </label>
+          <label for="notificationWeeklyDay">Jour hebdo
+            <select id="notificationWeeklyDay">
+              <option value="1">Lundi</option>
+              <option value="2">Mardi</option>
+              <option value="3">Mercredi</option>
+              <option value="4">Jeudi</option>
+              <option value="5">Vendredi</option>
+              <option value="6">Samedi</option>
+              <option value="0">Dimanche</option>
+            </select>
+          </label>
+        </div>
+        <p id="notificationStatus" class="notification-status" aria-live="polite">Notifications désactivées dans l'application.</p>
+      </div>
     </section>
 
     <section class="card result-card" aria-live="polite">
@@ -500,6 +777,24 @@ strong {
             <div id="savingsProjection" class="savings-projection" aria-label="Progression sans tabac"></div>
           </div>
         </div>
+      </div>
+    </section>
+
+    <section class="card craving-card" aria-live="polite">
+      <div class="craving-head">
+        <div>
+          <p class="craving-kicker">Mode urgence</p>
+          <h2>J'ai envie de fumer</h2>
+        </div>
+        <span id="cravingSessionCount" class="craving-badge">0 sessions réussies</span>
+      </div>
+      <p>Quand l'envie monte, lance un protocole court de 3 minutes pour la laisser passer.</p>
+      <div id="cravingTimer" class="craving-timer">03:00</div>
+      <p id="cravingStatus" class="craving-status">Prêt à démarrer une session anti-craving.</p>
+      <div id="cravingTip" class="craving-tip">Astuce: bois un verre d'eau lentement et respire profondément 4 fois.</div>
+      <div class="craving-actions">
+        <button id="startCravingButton" type="button">Démarrer 3 minutes</button>
+        <button id="cravingDoneButton" type="button" class="secondary-button" hidden>J'ai tenu, bravo</button>
       </div>
     </section>
 
@@ -575,6 +870,62 @@ strong {
       </form>
     </section>
   </main>
+
+  <div id="onboardingModal" class="onboarding-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Découverte de l'application">
+    <div class="onboarding-panel" role="document">
+      <div class="onboarding-progress">
+        <span id="onboardingProgressLabel" class="onboarding-progress-label">Étape 1 sur 3</span>
+        <div class="onboarding-progress-track" aria-hidden="true">
+          <div id="onboardingProgressFill" class="onboarding-progress-fill"></div>
+        </div>
+      </div>
+
+      <section class="onboarding-step active" data-step="1">
+        <h3>Bienvenue, on va rendre ton arrêt plus simple</h3>
+        <p>En moins d'une minute, tu auras un plan clair, des rappels utiles et un objectif motivant.</p>
+        <ul class="onboarding-benefits">
+          <li>Suivi automatique de tes économies en euros</li>
+          <li>Visualisation de ta progression santé</li>
+          <li>Outils anti-craving quand c'est difficile</li>
+        </ul>
+      </section>
+
+      <section class="onboarding-step" data-step="2" hidden>
+        <h3>Configuration express</h3>
+        <p>Entre ces infos pour personnaliser les calculs.</p>
+        <div class="onboarding-grid">
+          <div>
+            <label for="onboardingCigarettesPerDay">Cigarettes par jour</label>
+            <input id="onboardingCigarettesPerDay" type="number" min="0" value="10" />
+          </div>
+          <div>
+            <label for="onboardingPricePerPack">Prix d'un paquet (€)</label>
+            <input id="onboardingPricePerPack" type="text" inputmode="decimal" value="13,00" />
+          </div>
+          <div>
+            <label for="onboardingQuitDate">Date d'arrêt</label>
+            <input id="onboardingQuitDate" type="date" />
+          </div>
+        </div>
+      </section>
+
+      <section class="onboarding-step" data-step="3" hidden>
+        <h3>Dernière étape: les rappels</h3>
+        <p>Active les notifications pour recevoir un coup de pouce au bon moment.</p>
+        <label class="onboarding-checkbox" for="onboardingNotificationOptIn">
+          <input id="onboardingNotificationOptIn" type="checkbox" checked />
+          <span>Activer les notifications de motivation et de progression</span>
+        </label>
+        <p class="field-note">Tu pourras les désactiver à tout moment dans l'application.</p>
+      </section>
+
+      <div class="onboarding-actions">
+        <button id="onboardingSkipButton" type="button" class="ghost-button">Passer</button>
+        <button id="onboardingBackButton" type="button" class="secondary-button" hidden>Retour</button>
+        <button id="onboardingNextButton" type="button">Continuer</button>
+      </div>
+    </div>
+  </div>
 
   <script src="./script.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>

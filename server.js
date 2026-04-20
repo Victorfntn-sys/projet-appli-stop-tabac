@@ -283,6 +283,83 @@ function getPauseMessage(dateIso) {
   return messages[hash % messages.length];
 }
 
+function parseTimeToMinutes(value, fallbackMinutes) {
+  const match = /^(\d{2}):(\d{2})$/.exec(String(value || '').trim());
+  if (!match) {
+    return fallbackMinutes;
+  }
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    return fallbackMinutes;
+  }
+  return (hours * 60) + minutes;
+}
+
+function getDateInUserTimezone(now, timezoneOffsetMinutes) {
+  const offset = Number(timezoneOffsetMinutes);
+  if (!Number.isFinite(offset)) {
+    return new Date(now.getTime());
+  }
+  return new Date(now.getTime() - (offset * 60 * 1000));
+}
+
+function isWithinQuietHours(localDate, quietStart, quietEnd) {
+  const startMinutes = parseTimeToMinutes(quietStart, 21 * 60 + 30);
+  const endMinutes = parseTimeToMinutes(quietEnd, 8 * 60);
+  if (startMinutes === endMinutes) {
+    return false;
+  }
+
+  const nowMinutes = (localDate.getHours() * 60) + localDate.getMinutes();
+  if (startMinutes < endMinutes) {
+    return nowMinutes >= startMinutes && nowMinutes < endMinutes;
+  }
+
+  return nowMinutes >= startMinutes || nowMinutes < endMinutes;
+}
+
+function isAllowedDayByFrequency(localDate, frequency, weeklyDay) {
+  const day = localDate.getDay();
+  if (frequency === 'weekdays') {
+    return day >= 1 && day <= 5;
+  }
+  if (frequency === 'weekly') {
+    return day === Number(weeklyDay);
+  }
+  return true;
+}
+
+function isNearReminderTime(localDate, reminderTime) {
+  const reminderMinutes = parseTimeToMinutes(reminderTime, 9 * 60);
+  const nowMinutes = (localDate.getHours() * 60) + localDate.getMinutes();
+  return Math.abs(nowMinutes - reminderMinutes) <= 5;
+}
+
+function canSendPushForUser(userState, now = new Date()) {
+  const notificationPrefs = userState?.notificationPrefs || {};
+  const frequency = notificationPrefs.frequency || 'daily';
+  const quietStart = notificationPrefs.quietStart || '21:30';
+  const quietEnd = notificationPrefs.quietEnd || '08:00';
+  const reminderTime = notificationPrefs.reminderTime || '09:00';
+  const weeklyDay = String(notificationPrefs.weeklyDay ?? '1');
+  const localDate = getDateInUserTimezone(now, userState?.timezoneOffsetMinutes);
+
+  if (isWithinQuietHours(localDate, quietStart, quietEnd)) {
+    return false;
+  }
+
+  if (!isAllowedDayByFrequency(localDate, frequency, weeklyDay)) {
+    return false;
+  }
+
+  if (!isNearReminderTime(localDate, reminderTime)) {
+    return false;
+  }
+
+  return true;
+}
+
 function getSavedPacks(userState) {
   const cigsPerDay = Number(userState.cigsPerDay) || 0;
   const cigsPerPack = Number(userState.cigsPerPack) || 1;
@@ -323,13 +400,16 @@ async function sendPushNotification(subscription, payload) {
 async function sendScheduledNotifications() {
   const subscriptions = await readSubscriptions();
   const todayIso = getTodayIso();
+  const now = new Date();
   const nextSubscriptions = [];
 
   for (const record of subscriptions) {
     let keepRecord = true;
     const userState = record.userState || {};
 
-    if (userState.isPaused && record.lastPausePushAt !== todayIso) {
+    const canSendNow = canSendPushForUser(userState, now);
+
+    if (canSendNow && userState.isPaused && record.lastPausePushAt !== todayIso) {
       const result = await sendPushNotification(record.subscription, {
         title: 'Calculateur d\'economies',
         body: getPauseMessage(todayIso),
@@ -343,7 +423,7 @@ async function sendScheduledNotifications() {
     }
 
     const savedPacks = getSavedPacks(userState);
-    if (keepRecord && savedPacks > (record.lastNotifiedPackCount || 0)) {
+    if (keepRecord && canSendNow && savedPacks > (record.lastNotifiedPackCount || 0)) {
       const newPacks = savedPacks - (record.lastNotifiedPackCount || 0);
       const result = await sendPushNotification(record.subscription, {
         title: 'Calculateur d\'economies',
