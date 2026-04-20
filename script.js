@@ -17,6 +17,7 @@ const STORAGE_ONBOARDING_DONE = 'stop-smoking-onboarding-done';
 const STORAGE_CRAVING_SESSION_COUNT = 'stop-smoking-craving-session-count';
 const STORAGE_NOTIFICATION_PREFS = 'stop-smoking-notification-preferences';
 const STORAGE_ANALYTICS_EVENTS = 'stop-smoking-analytics-events';
+const STORAGE_BACKUP_RECOVERY_KEY = 'stop-smoking-backup-recovery-key';
 const cigarettesPerDay = document.getElementById('cigarettesPerDay');
 const pricePerPack = document.getElementById('pricePerPack');
 const cigarettesPerPack = document.getElementById('cigarettesPerPack');
@@ -56,6 +57,10 @@ const notificationQuietEnd = document.getElementById('notificationQuietEnd');
 const notificationTone = document.getElementById('notificationTone');
 const notificationWeeklyDay = document.getElementById('notificationWeeklyDay');
 const backupStatus = document.getElementById('backupStatus');
+const backupRecoveryKey = document.getElementById('backupRecoveryKey');
+const backupCopyKeyButton = document.getElementById('backupCopyKeyButton');
+const backupVersionSelect = document.getElementById('backupVersionSelect');
+const backupRestoreVersionButton = document.getElementById('backupRestoreVersionButton');
 const resultCard = document.querySelector('.result-card');
 const savingsProjection = document.getElementById('savingsProjection');
 const appLoadingScreen = document.getElementById('appLoadingScreen');
@@ -106,6 +111,7 @@ let cravingIntervalId = null;
 let cravingSecondsLeft = 180;
 let backupSyncTimeoutId = null;
 let lastBackupPayloadKey = '';
+let lastBackupVersions = [];
 const PUSH_STATE_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 const SERVICE_WORKER_UPDATE_CHECK_INTERVAL_MS = 60 * 1000;
 const LAUNCH_AD_COOLDOWN_MS = 6 * 60 * 60 * 1000;
@@ -235,6 +241,41 @@ function getOrCreateClientId() {
 
 const clientId = getOrCreateClientId();
 
+function generateRecoveryKey() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const parts = [];
+  for (let groupIndex = 0; groupIndex < 4; groupIndex += 1) {
+    let part = '';
+    for (let i = 0; i < 4; i += 1) {
+      const index = Math.floor(Math.random() * alphabet.length);
+      part += alphabet[index];
+    }
+    parts.push(part);
+  }
+  return parts.join('-');
+}
+
+function getOrCreateRecoveryKey() {
+  try {
+    const existing = localStorage.getItem(STORAGE_BACKUP_RECOVERY_KEY);
+    if (existing && existing.trim().length >= 8) {
+      return existing.trim();
+    }
+    const next = generateRecoveryKey();
+    localStorage.setItem(STORAGE_BACKUP_RECOVERY_KEY, next);
+    return next;
+  } catch {
+    return generateRecoveryKey();
+  }
+}
+
+function getRecoveryKey() {
+  if (backupRecoveryKey?.value?.trim()) {
+    return backupRecoveryKey.value.trim();
+  }
+  return getOrCreateRecoveryKey();
+}
+
 function getStoredLastPackCount() {
   try {
     return Number(localStorage.getItem(STORAGE_LAST_PACK_COUNT)) || 0;
@@ -346,6 +387,83 @@ function setBackupStatus(message, type = '') {
   }
 }
 
+function renderBackupRecoveryKey() {
+  if (!backupRecoveryKey) {
+    return;
+  }
+  backupRecoveryKey.value = getOrCreateRecoveryKey();
+}
+
+function renderBackupVersions(versions = []) {
+  if (!backupVersionSelect) {
+    return;
+  }
+
+  const safeVersions = Array.isArray(versions) ? versions : [];
+  lastBackupVersions = safeVersions;
+  const defaultOption = '<option value="">Derniere version</option>';
+
+  if (safeVersions.length === 0) {
+    backupVersionSelect.innerHTML = `${defaultOption}<option value="" disabled>Aucune version disponible</option>`;
+    backupRestoreVersionButton && (backupRestoreVersionButton.disabled = true);
+    return;
+  }
+
+  const options = safeVersions.map(item => {
+    const label = new Date(item.createdAt).toLocaleString(locale, {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    return `<option value="${item.id}">${label}</option>`;
+  }).join('');
+
+  backupVersionSelect.innerHTML = `${defaultOption}${options}`;
+  if (backupRestoreVersionButton) {
+    backupRestoreVersionButton.disabled = false;
+  }
+}
+
+async function refreshBackupVersionList() {
+  try {
+    const response = await fetch(`/api/backup/versions/${encodeURIComponent(clientId)}?recoveryKey=${encodeURIComponent(getRecoveryKey())}`);
+    if (!response.ok) {
+      return;
+    }
+    const payload = await response.json();
+    renderBackupVersions(payload.versions || []);
+  } catch {
+    // ignore non blocking version refresh errors
+  }
+}
+
+async function restoreBackupVersion(versionId) {
+  const query = new URLSearchParams({ recoveryKey: getRecoveryKey() });
+  if (versionId) {
+    query.set('versionId', versionId);
+  }
+
+  const response = await fetch(`/api/backup/state/${encodeURIComponent(clientId)}?${query.toString()}`);
+  if (!response.ok) {
+    throw new Error('backup-restore-version-failed');
+  }
+
+  const payload = await response.json();
+  if (!payload?.backup?.state) {
+    throw new Error('backup-restore-version-invalid');
+  }
+
+  renderBackupVersions(payload.versions || []);
+
+  applyBackupStateToUi(payload.backup.state);
+  refreshTrackingUI(new Date());
+  calculateSavings();
+  setBackupStatus('Sauvegarde auto: version restauree avec succes.', 'success');
+  trackEvent('backup_version_restored', { versionId: versionId || 'latest' });
+}
+
 function toIsoDateValue(value) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) {
@@ -430,9 +548,10 @@ async function restoreStateFromBackupIfNeeded() {
 
   try {
     setBackupStatus('Sauvegarde auto: recherche d\'une sauvegarde distante...');
-    const response = await fetch(`/api/backup/state/${encodeURIComponent(clientId)}`);
+    const response = await fetch(`/api/backup/state/${encodeURIComponent(clientId)}?recoveryKey=${encodeURIComponent(getRecoveryKey())}`);
     if (response.status === 404) {
       setBackupStatus('Sauvegarde auto: aucune sauvegarde distante pour le moment.');
+      renderBackupVersions([]);
       return;
     }
     if (!response.ok) {
@@ -444,6 +563,8 @@ async function restoreStateFromBackupIfNeeded() {
       setBackupStatus('Sauvegarde auto: format de sauvegarde invalide.', 'error');
       return;
     }
+
+    renderBackupVersions(payload.versions || []);
 
     applyBackupStateToUi(payload.backup.state);
     refreshTrackingUI(new Date());
@@ -458,6 +579,7 @@ async function restoreStateFromBackupIfNeeded() {
 function getBackupPayload() {
   return {
     clientId,
+    recoveryKey: getRecoveryKey(),
     state: getCurrentUserState(),
   };
 }
@@ -491,6 +613,7 @@ function queueAutomaticBackupSync() {
       lastBackupPayloadKey = payloadKey;
       setBackupStatus(`Sauvegarde auto: synchronisee (${new Date(data.updatedAt || Date.now()).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}).`, 'success');
       trackEvent('backup_synced', { updatedAt: data.updatedAt || '' });
+      refreshBackupVersionList();
     } catch {
       setBackupStatus('Sauvegarde auto: echec de synchronisation.', 'error');
     }
@@ -1787,6 +1910,42 @@ onboardingNextButton?.addEventListener('click', () => {
 });
 startCravingButton?.addEventListener('click', startCravingSession);
 cravingDoneButton?.addEventListener('click', () => finishCravingSession({ success: true }));
+backupCopyKeyButton?.addEventListener('click', async () => {
+  const key = getRecoveryKey();
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(key);
+    }
+    setBackupStatus('Sauvegarde auto: cle copiee dans le presse-papiers.', 'success');
+  } catch {
+    setBackupStatus('Sauvegarde auto: copie impossible, selectionne la cle manuellement.', 'error');
+  }
+});
+backupRestoreVersionButton?.addEventListener('click', async () => {
+  const selectedVersionId = backupVersionSelect?.value || '';
+  if (!lastBackupVersions.length && !selectedVersionId) {
+    setBackupStatus('Sauvegarde auto: aucune version a restaurer.', 'error');
+    return;
+  }
+  try {
+    setBackupStatus('Sauvegarde auto: restauration en cours...');
+    await restoreBackupVersion(selectedVersionId);
+  } catch {
+    setBackupStatus('Sauvegarde auto: restauration impossible, verifie la cle de recuperation.', 'error');
+  }
+});
+backupRecoveryKey?.addEventListener('input', () => {
+  const nextValue = backupRecoveryKey.value.trim().toUpperCase();
+  if (!nextValue) {
+    return;
+  }
+  try {
+    localStorage.setItem(STORAGE_BACKUP_RECOVERY_KEY, nextValue);
+    backupRecoveryKey.value = nextValue;
+  } catch {
+    // ignore storage errors
+  }
+});
 notificationFrequency?.addEventListener('change', persistNotificationPrefsFromInputs);
 notificationReminderTime?.addEventListener('change', persistNotificationPrefsFromInputs);
 notificationQuietStart?.addEventListener('change', persistNotificationPrefsFromInputs);
@@ -1802,6 +1961,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   updateAppLoading(28, 'Restauration de vos données...');
   notificationsEnabled = getStoredNotificationsEnabled();
   applyNotificationPrefsToInputs();
+  renderBackupRecoveryKey();
   const storedDate = getStoredQuitDate();
   const storedCigarettesPerDay = getStoredFieldValue(STORAGE_CIGARETTES_PER_DAY);
   const storedPricePerPack = getStoredFieldValue(STORAGE_PRICE_PER_PACK);
@@ -1853,6 +2013,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   startAutomaticBackupScheduler();
   startPauseReminderScheduler();
   maybeSendPauseEncouragement();
+  refreshBackupVersionList();
   updateCravingSessionCountLabel();
   updateCravingUiIdle();
   trackEvent('app_opened', { notificationsEnabled });

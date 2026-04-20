@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const fs = require('fs/promises');
 const path = require('path');
+const crypto = require('crypto');
 const ExcelJS = require('exceljs');
 const webPush = require('web-push');
 
@@ -20,6 +21,8 @@ const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:contact@example.com';
 const feedbackWebhookUrl = process.env.FEEDBACK_WEBHOOK_URL || '';
 const exportAdminKey = process.env.EXPORT_ADMIN_KEY || '';
 const twaPackageName = process.env.TWA_PACKAGE_NAME || 'com.victorfntn.stoptabac';
+const backupEncryptionSecret = process.env.BACKUP_ENCRYPTION_SECRET || vapidPrivateKey || 'dev-insecure-backup-secret-change-me';
+const MAX_BACKUP_VERSIONS = 20;
 const twaSha256Fingerprints = (process.env.TWA_SHA256_CERT_FINGERPRINTS || '')
   .split(',')
   .map(value => value.trim())
@@ -203,6 +206,85 @@ function sanitizeBackupState(state) {
         },
     timezoneOffsetMinutes: Number(state.timezoneOffsetMinutes) || 0,
   };
+}
+
+function hashRecoveryKey(recoveryKey) {
+  const normalized = typeof recoveryKey === 'string' ? recoveryKey.trim() : '';
+  if (!normalized) {
+    return '';
+  }
+  return crypto.createHash('sha256').update(normalized, 'utf8').digest('hex');
+}
+
+function getBackupEncryptionKey() {
+  return crypto.createHash('sha256').update(String(backupEncryptionSecret), 'utf8').digest();
+}
+
+function encryptBackupState(state) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', getBackupEncryptionKey(), iv);
+  const json = JSON.stringify(state);
+  const encryptedBuffer = Buffer.concat([cipher.update(json, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return {
+    algorithm: 'aes-256-gcm',
+    iv: iv.toString('base64'),
+    tag: tag.toString('base64'),
+    encryptedState: encryptedBuffer.toString('base64'),
+  };
+}
+
+function decryptBackupState(versionEntry) {
+  if (!versionEntry?.encryptedState || !versionEntry?.iv || !versionEntry?.tag) {
+    return null;
+  }
+  try {
+    const decipher = crypto.createDecipheriv(
+      'aes-256-gcm',
+      getBackupEncryptionKey(),
+      Buffer.from(versionEntry.iv, 'base64')
+    );
+    decipher.setAuthTag(Buffer.from(versionEntry.tag, 'base64'));
+    const decrypted = Buffer.concat([
+      decipher.update(Buffer.from(versionEntry.encryptedState, 'base64')),
+      decipher.final(),
+    ]);
+    const parsed = JSON.parse(decrypted.toString('utf8'));
+    return sanitizeBackupState(parsed);
+  } catch {
+    return null;
+  }
+}
+
+function getBackupVersionsMeta(record) {
+  if (!record?.versions || !Array.isArray(record.versions)) {
+    return [];
+  }
+  return record.versions
+    .map(item => ({ id: item.id, createdAt: item.createdAt }))
+    .filter(item => item.id && item.createdAt)
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+}
+
+function getLatestBackupState(record) {
+  if (record?.versions && Array.isArray(record.versions) && record.versions.length > 0) {
+    return decryptBackupState(record.versions[record.versions.length - 1]);
+  }
+  if (record?.state) {
+    return sanitizeBackupState(record.state);
+  }
+  return null;
+}
+
+function getBackupStateByVersionId(record, versionId) {
+  if (!record?.versions || !Array.isArray(record.versions) || !versionId) {
+    return null;
+  }
+  const versionEntry = record.versions.find(item => item.id === versionId);
+  if (!versionEntry) {
+    return null;
+  }
+  return decryptBackupState(versionEntry);
 }
 
 async function readSubscriptions() {
@@ -685,6 +767,7 @@ app.post('/api/backup/state', async (req, res) => {
   try {
     const clientId = sanitizeClientId(req.body?.clientId);
     const backupState = sanitizeBackupState(req.body?.state);
+    const recoveryKeyHash = hashRecoveryKey(req.body?.recoveryKey);
 
     if (!clientId) {
       res.status(400).json({ error: 'missing-client-id' });
@@ -697,16 +780,39 @@ app.post('/api/backup/state', async (req, res) => {
     }
 
     const backupsByClientId = await readUserBackups();
+    const existingRecord = backupsByClientId[clientId] || {};
+
+    if (existingRecord.recoveryKeyHash && existingRecord.recoveryKeyHash !== recoveryKeyHash) {
+      res.status(403).json({ error: 'invalid-recovery-key' });
+      return;
+    }
+
+    const encryptedVersion = encryptBackupState(backupState);
+    const nextVersions = Array.isArray(existingRecord.versions) ? [...existingRecord.versions] : [];
+    const nextVersionEntry = {
+      id: `${Date.now()}-${crypto.randomBytes(4).toString('hex')}`,
+      createdAt: new Date().toISOString(),
+      ...encryptedVersion,
+    };
+    nextVersions.push(nextVersionEntry);
+    const boundedVersions = nextVersions.slice(-MAX_BACKUP_VERSIONS);
+
     backupsByClientId[clientId] = {
       clientId,
-      state: backupState,
+      recoveryKeyHash: existingRecord.recoveryKeyHash || recoveryKeyHash || '',
+      versions: boundedVersions,
       updatedAt: new Date().toISOString(),
       source: req.get('origin') || req.get('host') || '',
       userAgent: req.get('user-agent') || '',
     };
 
     await writeUserBackups(backupsByClientId);
-    res.json({ ok: true, updatedAt: backupsByClientId[clientId].updatedAt });
+    res.json({
+      ok: true,
+      updatedAt: backupsByClientId[clientId].updatedAt,
+      latestVersionId: nextVersionEntry.id,
+      versionsCount: boundedVersions.length,
+    });
   } catch {
     res.status(500).json({ error: 'backup-save-failed' });
   }
@@ -715,6 +821,9 @@ app.post('/api/backup/state', async (req, res) => {
 app.get('/api/backup/state/:clientId', async (req, res) => {
   try {
     const clientId = sanitizeClientId(req.params?.clientId);
+    const requestedVersionId = typeof req.query?.versionId === 'string' ? req.query.versionId.trim() : '';
+    const recoveryKeyHash = hashRecoveryKey(req.query?.recoveryKey);
+
     if (!clientId) {
       res.status(400).json({ error: 'invalid-client-id' });
       return;
@@ -728,12 +837,64 @@ app.get('/api/backup/state/:clientId', async (req, res) => {
       return;
     }
 
+    if (backup.recoveryKeyHash && backup.recoveryKeyHash !== recoveryKeyHash) {
+      res.status(403).json({ error: 'invalid-recovery-key' });
+      return;
+    }
+
+    const restoredState = requestedVersionId
+      ? getBackupStateByVersionId(backup, requestedVersionId)
+      : getLatestBackupState(backup);
+
+    if (!restoredState) {
+      res.status(404).json({ error: requestedVersionId ? 'backup-version-not-found' : 'backup-state-not-found' });
+      return;
+    }
+
     res.json({
       ok: true,
-      backup,
+      backup: {
+        clientId,
+        state: restoredState,
+        updatedAt: backup.updatedAt || '',
+      },
+      versions: getBackupVersionsMeta(backup),
     });
   } catch {
     res.status(500).json({ error: 'backup-read-failed' });
+  }
+});
+
+app.get('/api/backup/versions/:clientId', async (req, res) => {
+  try {
+    const clientId = sanitizeClientId(req.params?.clientId);
+    const recoveryKeyHash = hashRecoveryKey(req.query?.recoveryKey);
+
+    if (!clientId) {
+      res.status(400).json({ error: 'invalid-client-id' });
+      return;
+    }
+
+    const backupsByClientId = await readUserBackups();
+    const backup = backupsByClientId[clientId];
+
+    if (!backup) {
+      res.status(404).json({ error: 'backup-not-found' });
+      return;
+    }
+
+    if (backup.recoveryKeyHash && backup.recoveryKeyHash !== recoveryKeyHash) {
+      res.status(403).json({ error: 'invalid-recovery-key' });
+      return;
+    }
+
+    res.json({
+      ok: true,
+      versions: getBackupVersionsMeta(backup),
+      updatedAt: backup.updatedAt || '',
+    });
+  } catch {
+    res.status(500).json({ error: 'backup-versions-read-failed' });
   }
 });
 

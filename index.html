@@ -266,6 +266,50 @@ input:focus {
   color: #166534;
 }
 
+.backup-tools {
+  margin-top: 12px;
+  border: 1px solid #cce8e3;
+  border-radius: 14px;
+  padding: 12px;
+  background: #f6fcfb;
+}
+
+.backup-tools h3 {
+  margin: 0 0 8px;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #124842;
+}
+
+.backup-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.backup-row input,
+.backup-row select {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 0.92rem;
+}
+
+.backup-row button {
+  width: auto;
+  margin-top: 0;
+  min-width: 120px;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.backup-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #3f6f6a;
+}
+
 .notification-status {
   color: var(--muted);
   font-size: 0.9rem;
@@ -646,6 +690,14 @@ strong {
   .notification-grid {
     grid-template-columns: 1fr;
   }
+
+  .backup-row {
+    grid-template-columns: 1fr;
+  }
+
+  .backup-row button {
+    width: 100%;
+  }
 }
   </style>
 </head>
@@ -702,6 +754,20 @@ strong {
       </div>
       <p id="trackingStatus" class="tracking-status">Suivi actif.</p>
       <p id="backupStatus" class="backup-status" aria-live="polite">Sauvegarde auto: initialisation...</p>
+      <div class="backup-tools">
+        <h3>Securite et restauration</h3>
+        <div class="backup-row">
+          <input id="backupRecoveryKey" type="text" aria-label="Cle de recuperation" autocomplete="off" spellcheck="false" />
+          <button id="backupCopyKeyButton" type="button" class="ghost-button">Copier la cle</button>
+        </div>
+        <div class="backup-row">
+          <select id="backupVersionSelect" aria-label="Versions de sauvegarde">
+            <option value="">Derniere version</option>
+          </select>
+          <button id="backupRestoreVersionButton" type="button" class="secondary-button">Restaurer</button>
+        </div>
+        <p class="backup-hint">Conserve cette cle: elle protege tes sauvegardes et permet la restauration sur un autre appareil.</p>
+      </div>
       <div class="notification-note">
         <label class="switch" for="notificationToggle">
           <input id="notificationToggle" type="checkbox" />
