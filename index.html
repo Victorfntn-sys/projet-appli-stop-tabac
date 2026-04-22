@@ -716,7 +716,10 @@ strong {
     <header>
       <h1>Calculateur d'économies</h1>
       <p>Suivez votre arrêt du tabac et découvrez combien vous pouvez économiser.</p>
-      <button id="installAppButton" class="install-button" type="button" hidden>Installer l'application</button>
+      <div class="header-actions">
+        <button id="installAppButton" class="install-button" type="button" hidden>Installer l'application</button>
+        <button id="accountButton" class="ghost-button account-button" type="button">👤 Connexion</button>
+      </div>
     </header>
 
     <section class="card input-card">
@@ -841,6 +844,9 @@ strong {
           </div>
           <div class="chart-container has-projection">
             <div id="savingsProjection" class="savings-projection" aria-label="Progression sans tabac"></div>
+          </div>
+          <div class="result-actions">
+            <button id="exportPdfButton" class="ghost-button pdf-button" type="button">📄 Télécharger ma progression</button>
           </div>
         </div>
       </div>
@@ -1003,5 +1009,51 @@ strong {
 
   <script src="./script.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js" integrity="sha384-5JqMv4L/Xa0hfvtF06qboNdhvuYXUku9ZrhZh3bSk8VXF0A/RuSLHpLsSV9Zqhl6" crossorigin="anonymous"></script>
+
+  <!-- Account modal -->
+  <div id="accountModal" class="account-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Mon compte">
+    <div id="accountModalOverlay" class="account-modal-overlay"></div>
+    <div class="account-modal-panel" role="document">
+      <button id="accountModalClose" class="account-modal-close" type="button" aria-label="Fermer">&times;</button>
+      <h2 class="account-modal-title">Mon compte</h2>
+
+      <!-- Logged-in panel -->
+      <div class="account-modal-logged-in" hidden>
+        <p class="account-email-label">Connecté en tant que</p>
+        <p id="accountEmailLabel" class="account-email-value"></p>
+        <p class="account-sync-info">Vos données sont synchronisées sur tous vos appareils.</p>
+        <button id="accountLogoutButton" class="ghost-button account-logout-btn" type="button">Se déconnecter</button>
+      </div>
+
+      <!-- Auth tabs -->
+      <div class="account-modal-auth">
+        <div class="account-tabs">
+          <button id="accountLoginTab" class="account-tab active" type="button">Se connecter</button>
+          <button id="accountRegisterTab" class="account-tab" type="button">Créer un compte</button>
+        </div>
+
+        <p id="accountFormError" class="account-form-error" aria-live="polite"></p>
+
+        <form id="accountLoginForm">
+          <label for="loginEmail">Email</label>
+          <input id="loginEmail" type="email" placeholder="vous@email.com" autocomplete="email" required />
+          <label for="loginPassword">Mot de passe</label>
+          <input id="loginPassword" type="password" placeholder="Mot de passe" autocomplete="current-password" required />
+          <button id="loginSubmitBtn" type="submit">Se connecter</button>
+        </form>
+
+        <form id="accountRegisterForm" hidden>
+          <label for="registerEmail">Email</label>
+          <input id="registerEmail" type="email" placeholder="vous@email.com" autocomplete="email" required />
+          <label for="registerPassword">Mot de passe (8 caractères min.)</label>
+          <input id="registerPassword" type="password" placeholder="Mot de passe" autocomplete="new-password" minlength="8" required />
+          <button id="registerSubmitBtn" type="submit">Créer mon compte</button>
+        </form>
+
+        <p class="account-promo">Synchronisez votre progression sur tous vos appareils gratuitement.</p>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

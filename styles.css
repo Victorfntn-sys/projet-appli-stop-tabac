@@ -1298,3 +1298,201 @@ strong {
   }
 }
 
+
+/* -----------------------------------------------------------------------
+   Header actions
+   ----------------------------------------------------------------------- */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.account-button {
+  font-size: 0.85rem;
+  padding: 6px 14px;
+}
+
+/* -----------------------------------------------------------------------
+   PDF export button
+   ----------------------------------------------------------------------- */
+.result-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.pdf-button {
+  font-size: 0.82rem;
+  padding: 6px 14px;
+  opacity: 0.75;
+}
+
+.pdf-button:hover {
+  opacity: 1;
+}
+
+/* -----------------------------------------------------------------------
+   Account modal
+   ----------------------------------------------------------------------- */
+.account-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  align-items: center;
+  justify-content: center;
+}
+
+.account-modal.open {
+  display: flex;
+}
+
+.account-modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.account-modal-panel {
+  position: relative;
+  background: var(--card-bg, #fff);
+  border-radius: 18px;
+  padding: 32px;
+  max-width: 420px;
+  width: calc(100% - 48px);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.22);
+  z-index: 1;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.account-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-muted, #888);
+  line-height: 1;
+  padding: 4px 8px;
+}
+
+.account-modal-title {
+  margin: 0 0 20px;
+  font-size: 1.2rem;
+}
+
+.account-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 18px;
+  border-bottom: 2px solid var(--border, #e0e0e0);
+}
+
+.account-tab {
+  background: none;
+  border: none;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 0.93rem;
+  color: var(--text-muted, #888);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.account-tab.active {
+  color: var(--accent, #4a90d9);
+  border-bottom-color: var(--accent, #4a90d9);
+  font-weight: 600;
+}
+
+.account-modal-auth label {
+  display: block;
+  font-size: 0.87rem;
+  margin-bottom: 4px;
+  margin-top: 14px;
+  color: var(--text, #333);
+}
+
+.account-modal-auth input[type="email"],
+.account-modal-auth input[type="password"] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border, #ddd);
+  border-radius: 8px;
+  font-size: 1rem;
+  background: var(--input-bg, #f9f9f9);
+}
+
+.account-modal-auth button[type="submit"] {
+  width: 100%;
+  margin-top: 18px;
+  padding: 12px;
+  background: var(--accent, #4a90d9);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.account-modal-auth button[type="submit"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.account-form-error {
+  color: #d32f2f;
+  font-size: 0.85rem;
+  min-height: 1.2em;
+  margin: 4px 0;
+}
+
+.account-promo {
+  font-size: 0.8rem;
+  color: var(--text-muted, #888);
+  margin-top: 16px;
+  text-align: center;
+}
+
+.account-email-label {
+  font-size: 0.8rem;
+  color: var(--text-muted, #888);
+  margin: 0;
+}
+
+.account-email-value {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 4px 0 12px;
+  word-break: break-all;
+}
+
+.account-sync-info {
+  font-size: 0.85rem;
+  color: var(--text-muted, #888);
+  margin-bottom: 18px;
+}
+
+.account-logout-btn {
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+
+/* -----------------------------------------------------------------------
+   Print styles
+   ----------------------------------------------------------------------- */
+@media print {
+  body > *:not(.print-content) {
+    display: none !important;
+  }
+}

@@ -17,6 +17,7 @@ const STORAGE_ONBOARDING_DONE = 'stop-smoking-onboarding-done';
 const STORAGE_CRAVING_SESSION_COUNT = 'stop-smoking-craving-session-count';
 const STORAGE_NOTIFICATION_PREFS = 'stop-smoking-notification-preferences';
 const STORAGE_ANALYTICS_EVENTS = 'stop-smoking-analytics-events';
+const STORAGE_AUTH_TOKEN = 'stop-smoking-auth-token';
 const cigarettesPerDay = document.getElementById('cigarettesPerDay');
 const pricePerPack = document.getElementById('pricePerPack');
 const cigarettesPerPack = document.getElementById('cigarettesPerPack');
@@ -1612,6 +1613,352 @@ notificationQuietEnd?.addEventListener('change', persistNotificationPrefsFromInp
 notificationTone?.addEventListener('change', persistNotificationPrefsFromInputs);
 notificationWeeklyDay?.addEventListener('change', persistNotificationPrefsFromInputs);
 
+// -----------------------------------------------------------------------
+// Auth & account helpers
+// -----------------------------------------------------------------------
+
+let currentUser = null;
+
+function getStoredAuthToken() { return localStorage.getItem(STORAGE_AUTH_TOKEN) || null; }
+function saveAuthToken(token) { localStorage.setItem(STORAGE_AUTH_TOKEN, token); }
+function clearAuthToken() { localStorage.removeItem(STORAGE_AUTH_TOKEN); }
+function getAuthHeaders() {
+  const token = getStoredAuthToken();
+  return token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+}
+
+function updateAccountUI() {
+  const btn = document.getElementById('accountButton');
+  if (!btn) return;
+  if (currentUser) {
+    btn.textContent = '👤 Mon compte';
+    btn.title = currentUser.email;
+  } else {
+    btn.textContent = '👤 Connexion';
+    btn.title = '';
+  }
+}
+
+function openAccountModal() {
+  const modal = document.getElementById('accountModal');
+  if (!modal) return;
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+  const loggedInPanel = modal.querySelector('.account-modal-logged-in');
+  const authPanel = modal.querySelector('.account-modal-auth');
+  if (currentUser) {
+    if (loggedInPanel) loggedInPanel.hidden = false;
+    if (authPanel) authPanel.hidden = true;
+    const emailLabel = modal.querySelector('#accountEmailLabel');
+    if (emailLabel) emailLabel.textContent = currentUser.email;
+  } else {
+    if (loggedInPanel) loggedInPanel.hidden = true;
+    if (authPanel) authPanel.hidden = false;
+    showAccountTab('login');
+  }
+}
+
+function closeAccountModal() {
+  const modal = document.getElementById('accountModal');
+  if (!modal) return;
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden', 'true');
+}
+
+function showAccountTab(tab) {
+  const loginTab = document.getElementById('accountLoginTab');
+  const registerTab = document.getElementById('accountRegisterTab');
+  const loginForm = document.getElementById('accountLoginForm');
+  const registerForm = document.getElementById('accountRegisterForm');
+  if (tab === 'login') {
+    loginTab?.classList.add('active');
+    registerTab?.classList.remove('active');
+    if (loginForm) loginForm.hidden = false;
+    if (registerForm) registerForm.hidden = true;
+  } else {
+    registerTab?.classList.add('active');
+    loginTab?.classList.remove('active');
+    if (registerForm) registerForm.hidden = false;
+    if (loginForm) loginForm.hidden = true;
+  }
+  document.getElementById('accountFormError')?.textContent && (document.getElementById('accountFormError').textContent = '');
+}
+
+function restoreAccountState(state) {
+  if (!state) return;
+  if (state.quitDate) {
+    localStorage.setItem(STORAGE_QUIT_DATE, state.quitDate);
+    const quitDateInput = document.getElementById('quitDate');
+    if (quitDateInput) quitDateInput.value = state.quitDate;
+  }
+  if (state.cigsPerDay) {
+    localStorage.setItem(STORAGE_CIGARETTES_PER_DAY, String(state.cigsPerDay));
+    const cpdEl = document.getElementById('cigarettesPerDay');
+    if (cpdEl) cpdEl.value = state.cigsPerDay;
+  }
+  if (state.pricePerPack) {
+    localStorage.setItem(STORAGE_PRICE_PER_PACK, String(state.pricePerPack));
+    const pppEl = document.getElementById('pricePerPack');
+    if (pppEl) pppEl.value = state.pricePerPack;
+  }
+  if (state.cigsPerPack) {
+    localStorage.setItem(STORAGE_CIGARETTES_PER_PACK, String(state.cigsPerPack));
+    const cppEl = document.getElementById('cigarettesPerPack');
+    if (cppEl) cppEl.value = state.cigsPerPack;
+  }
+  if (state.goalName) {
+    localStorage.setItem(STORAGE_GOAL_NAME, state.goalName);
+    const gnEl = document.getElementById('goalName');
+    if (gnEl) gnEl.value = state.goalName;
+  }
+  if (state.goalAmount) {
+    localStorage.setItem(STORAGE_GOAL_AMOUNT, String(state.goalAmount));
+    const gaEl = document.getElementById('goalAmount');
+    if (gaEl) gaEl.value = state.goalAmount;
+  }
+  calculateSavings();
+}
+
+async function syncAccountStateToServer() {
+  if (!currentUser) return;
+  try {
+    const trackingState = JSON.parse(localStorage.getItem(STORAGE_TRACKING_STATE) || '{}');
+    const notificationPrefs = JSON.parse(localStorage.getItem(STORAGE_NOTIFICATION_PREFS) || '{}');
+    await fetch('/api/account/state', {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        quitDate: localStorage.getItem(STORAGE_QUIT_DATE) || '',
+        cigsPerDay: Number(localStorage.getItem(STORAGE_CIGARETTES_PER_DAY)) || 0,
+        cigsPerPack: Number(localStorage.getItem(STORAGE_CIGARETTES_PER_PACK)) || 0,
+        pricePerPack: Number(localStorage.getItem(STORAGE_PRICE_PER_PACK)) || 0,
+        goalName: localStorage.getItem(STORAGE_GOAL_NAME) || '',
+        goalAmount: Number(localStorage.getItem(STORAGE_GOAL_AMOUNT)) || 0,
+        trackingState,
+        notificationPrefs,
+      }),
+    });
+  } catch { /* non-blocking */ }
+}
+
+async function handleAccountLogin(event) {
+  event.preventDefault();
+  const emailInput = document.getElementById('loginEmail');
+  const passwordInput = document.getElementById('loginPassword');
+  const errorEl = document.getElementById('accountFormError');
+  const submitBtn = document.getElementById('loginSubmitBtn');
+  if (!emailInput || !passwordInput) return;
+  if (submitBtn) submitBtn.disabled = true;
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: emailInput.value.trim(), password: passwordInput.value }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (errorEl) errorEl.textContent = data.error === 'invalid-credentials' ? 'Email ou mot de passe incorrect.' : 'Erreur de connexion, réessayez.';
+      return;
+    }
+    saveAuthToken(data.token);
+    currentUser = data.user;
+    updateAccountUI();
+    // Restore server-side state
+    const stateRes = await fetch('/api/account/state', { headers: getAuthHeaders() });
+    if (stateRes.ok) {
+      const stateData = await stateRes.json();
+      if (stateData.state) restoreAccountState(stateData.state);
+    }
+    closeAccountModal();
+    trackEvent('account_login');
+  } catch {
+    if (errorEl) errorEl.textContent = 'Erreur réseau. Vérifiez votre connexion.';
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
+async function handleAccountRegister(event) {
+  event.preventDefault();
+  const emailInput = document.getElementById('registerEmail');
+  const passwordInput = document.getElementById('registerPassword');
+  const errorEl = document.getElementById('accountFormError');
+  const submitBtn = document.getElementById('registerSubmitBtn');
+  if (!emailInput || !passwordInput) return;
+  if (submitBtn) submitBtn.disabled = true;
+  try {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: emailInput.value.trim(), password: passwordInput.value }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (errorEl) {
+        if (data.error === 'email-already-used') errorEl.textContent = 'Cet email est déjà utilisé.';
+        else if (data.error === 'invalid-email') errorEl.textContent = 'Email invalide.';
+        else if (data.error === 'invalid-password') errorEl.textContent = 'Le mot de passe doit contenir au moins 8 caractères.';
+        else errorEl.textContent = 'Erreur lors de la création du compte.';
+      }
+      return;
+    }
+    saveAuthToken(data.token);
+    currentUser = data.user;
+    updateAccountUI();
+    // Save current local state to the new account
+    await syncAccountStateToServer();
+    closeAccountModal();
+    trackEvent('account_register');
+  } catch {
+    if (errorEl) errorEl.textContent = 'Erreur réseau. Vérifiez votre connexion.';
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
+async function handleAccountLogout() {
+  try {
+    const token = getStoredAuthToken();
+    if (token) {
+      await fetch('/api/auth/logout', { method: 'POST', headers: getAuthHeaders() });
+    }
+  } catch { /* non-blocking */ }
+  clearAuthToken();
+  currentUser = null;
+  updateAccountUI();
+  closeAccountModal();
+  trackEvent('account_logout');
+}
+
+async function initAccount() {
+  const token = getStoredAuthToken();
+  if (!token) return;
+  try {
+    const res = await fetch('/api/auth/me', { headers: getAuthHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      currentUser = data.user;
+      updateAccountUI();
+    } else {
+      clearAuthToken();
+    }
+  } catch { /* non-blocking */ }
+}
+
+async function flushAnalyticsToServer() {
+  try {
+    const raw = localStorage.getItem(STORAGE_ANALYTICS_EVENTS);
+    if (!raw) return;
+    const events = JSON.parse(raw);
+    if (!Array.isArray(events) || events.length === 0) return;
+    const res = await fetch('/api/analytics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ events }),
+    });
+    if (res.ok) {
+      localStorage.removeItem(STORAGE_ANALYTICS_EVENTS);
+    }
+  } catch { /* non-blocking */ }
+}
+
+// -----------------------------------------------------------------------
+// PDF export
+// -----------------------------------------------------------------------
+
+function exportProgressionPdf() {
+  const quitDateVal = localStorage.getItem(STORAGE_QUIT_DATE);
+  const cigsPerDayVal = Number(localStorage.getItem(STORAGE_CIGARETTES_PER_DAY)) || 0;
+  const pricePerPackVal = Number(localStorage.getItem(STORAGE_PRICE_PER_PACK)) || 0;
+  const cigsPerPackVal = Number(localStorage.getItem(STORAGE_CIGARETTES_PER_PACK)) || 20;
+  const goalNameVal = localStorage.getItem(STORAGE_GOAL_NAME) || '';
+  const goalAmountVal = Number(localStorage.getItem(STORAGE_GOAL_AMOUNT)) || 0;
+
+  const moneySavedEl = document.getElementById('moneySaved');
+  const cigarettesSavedEl = document.getElementById('cigarettesSaved');
+  const milestoneEl = document.getElementById('milestoneText');
+
+  const moneySaved = moneySavedEl ? moneySavedEl.textContent : '–';
+  const cigarettesSaved = cigarettesSavedEl ? cigarettesSavedEl.textContent : '–';
+  const milestone = milestoneEl ? milestoneEl.textContent : '';
+
+  let daysSmokeFree = 0;
+  if (quitDateVal) {
+    const diff = Date.now() - new Date(quitDateVal).getTime();
+    daysSmokeFree = Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
+  }
+
+  const goalProgress = goalAmountVal > 0
+    ? `${Math.min(100, Math.round((parseFloat(moneySaved.replace(/[^\d.,]/g, '').replace(',', '.')) / goalAmountVal) * 100))} %`
+    : '–';
+
+  const today = new Date().toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ma progression – Arrêt du tabac</title>
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; color: #1a1a2e; margin: 0; padding: 32px; max-width: 680px; }
+    h1 { color: #4a90d9; margin-bottom: 4px; }
+    .subtitle { color: #666; font-size: 14px; margin-bottom: 32px; }
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 32px; }
+    .stat-card { background: #f0f6ff; border-radius: 12px; padding: 16px 20px; }
+    .stat-label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-value { font-size: 28px; font-weight: 700; color: #4a90d9; margin-top: 4px; }
+    .milestone { background: #e8f5e9; border-radius: 12px; padding: 16px 20px; margin-bottom: 32px; font-size: 15px; }
+    .goal-section { background: #fff8e1; border-radius: 12px; padding: 16px 20px; margin-bottom: 32px; }
+    .footer { font-size: 12px; color: #aaa; margin-top: 40px; border-top: 1px solid #eee; padding-top: 16px; }
+    @media print { body { padding: 0; } }
+  </style>
+</head>
+<body>
+  <h1>Ma progression sans tabac</h1>
+  <p class="subtitle">Généré le ${today}</p>
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-label">Jours sans tabac</div>
+      <div class="stat-value">${daysSmokeFree}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Argent économisé</div>
+      <div class="stat-value">${moneySaved}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Cigarettes évitées</div>
+      <div class="stat-value">${cigarettesSaved}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Cigarettes / jour (avant)</div>
+      <div class="stat-value">${cigsPerDayVal}</div>
+    </div>
+  </div>
+  ${milestone ? `<div class="milestone"><strong>🫁 Avantages santé :</strong> ${milestone}</div>` : ''}
+  ${goalNameVal ? `<div class="goal-section"><strong>🎯 Objectif :</strong> ${goalNameVal} (${goalAmountVal} €)<br><strong>Progression :</strong> ${goalProgress}</div>` : ''}
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-label">Prix du paquet</div>
+      <div class="stat-value">${pricePerPackVal} €</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Cigarettes / paquet</div>
+      <div class="stat-value">${cigsPerPackVal}</div>
+    </div>
+  </div>
+  <div class="footer">Calculateur d'économies – Arrêt du tabac &nbsp;·&nbsp; Généré automatiquement</div>
+  <script>window.onload = () => { window.print(); }<\/script>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank');
+  if (win) {
+    win.document.write(html);
+    win.document.close();
+  }
+  trackEvent('pdf_export');
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
   const startedAt = performance.now();
   updateAppLoading(10, 'Initialisation de l\'application...');
@@ -1653,6 +2000,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   updateAppLoading(54, 'Calcul de votre progression...');
   refreshTrackingUI(today);
   calculateSavings();
+  initAccount().catch(() => undefined);
   updateNotificationStatus(Notification.permission);
   updateAppLoading(74, 'Configuration des notifications...');
   if (notificationsEnabled && Notification.permission === 'granted') {
@@ -1672,6 +2020,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   updateCravingSessionCountLabel();
   updateCravingUiIdle();
   trackEvent('app_opened', { notificationsEnabled });
+  flushAnalyticsToServer();
+  syncAccountStateToServer();
 
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
@@ -1760,7 +2110,20 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (event.key === 'Escape' && updateModal?.classList.contains('open')) {
       closeUpdateModal();
     }
+    if (event.key === 'Escape' && document.getElementById('accountModal')?.classList.contains('open')) {
+      closeAccountModal();
+    }
   });
+
+  document.getElementById('accountButton')?.addEventListener('click', openAccountModal);
+  document.getElementById('accountModalClose')?.addEventListener('click', closeAccountModal);
+  document.getElementById('accountModalOverlay')?.addEventListener('click', closeAccountModal);
+  document.getElementById('accountLoginTab')?.addEventListener('click', () => showAccountTab('login'));
+  document.getElementById('accountRegisterTab')?.addEventListener('click', () => showAccountTab('register'));
+  document.getElementById('accountLoginForm')?.addEventListener('submit', handleAccountLogin);
+  document.getElementById('accountRegisterForm')?.addEventListener('submit', handleAccountRegister);
+  document.getElementById('accountLogoutButton')?.addEventListener('click', handleAccountLogout);
+  document.getElementById('exportPdfButton')?.addEventListener('click', exportProgressionPdf);
 
   // Initialize Flatpickr for date input
   flatpickr(quitDate, {

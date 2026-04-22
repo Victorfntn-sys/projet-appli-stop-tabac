@@ -5,6 +5,9 @@ const fs = require('fs/promises');
 const path = require('path');
 const ExcelJS = require('exceljs');
 const webPush = require('web-push');
+const { randomBytes, createHmac, scrypt: scryptCallback, timingSafeEqual } = require('crypto');
+const { promisify } = require('util');
+const scrypt = promisify(scryptCallback);
 
 const app = express();
 app.disable('x-powered-by');
@@ -38,6 +41,16 @@ const twaSha256Fingerprints = (process.env.TWA_SHA256_CERT_FINGERPRINTS || '')
   .split(',')
   .map(value => value.trim())
   .filter(Boolean);
+
+if (!process.env.SESSION_SECRET) {
+  console.warn('Warning: SESSION_SECRET not set. Sessions will be invalidated on server restart. Set SESSION_SECRET in production.');
+}
+const SESSION_SECRET = process.env.SESSION_SECRET || randomBytes(32).toString('hex');
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const usersFile = path.join(dataDir, 'users.json');
+const sessionsFile = path.join(dataDir, 'sessions.json');
+const accountStatesFile = path.join(dataDir, 'account-states.json');
+const analyticsFile = path.join(dataDir, 'analytics.json');
 
 if (vapidPublicKey && vapidPrivateKey) {
   webPush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
@@ -126,6 +139,104 @@ const feedbackLimiter = createRateLimiter({
   windowMs: rateLimitWindowMs,
   maxRequests: parsePositiveIntEnv('RATE_LIMIT_FEEDBACK_MAX_REQUESTS', 25),
 });
+const authLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  maxRequests: parsePositiveIntEnv('RATE_LIMIT_AUTH_MAX_REQUESTS', 10),
+});
+const analyticsLimiter = createRateLimiter({
+  windowMs: rateLimitWindowMs,
+  maxRequests: parsePositiveIntEnv('RATE_LIMIT_ANALYTICS_MAX_REQUESTS', 30),
+});
+
+// --- Auth helpers ---
+
+async function readJsonDataFile(filePath, defaultValue) {
+  try {
+    const raw = await fs.readFile(filePath, 'utf8');
+    return JSON.parse(raw);
+  } catch {
+    return defaultValue;
+  }
+}
+
+async function writeJsonDataFile(filePath, data) {
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
+}
+
+async function readUsers() {
+  const data = await readJsonDataFile(usersFile, []);
+  return Array.isArray(data) ? data : [];
+}
+
+async function readSessions() {
+  const data = await readJsonDataFile(sessionsFile, []);
+  return Array.isArray(data) ? data : [];
+}
+
+async function readAccountStates() {
+  const data = await readJsonDataFile(accountStatesFile, {});
+  return (typeof data === 'object' && data !== null && !Array.isArray(data)) ? data : {};
+}
+
+async function readAnalyticsEvents() {
+  const data = await readJsonDataFile(analyticsFile, []);
+  return Array.isArray(data) ? data : [];
+}
+
+async function hashPassword(password) {
+  const salt = randomBytes(16).toString('hex');
+  const derivedKey = await scrypt(password, salt, 64);
+  return `${salt}:${derivedKey.toString('hex')}`;
+}
+
+async function verifyPassword(password, stored) {
+  const parts = String(stored || '').split(':');
+  if (parts.length !== 2) return false;
+  const [salt, keyHex] = parts;
+  try {
+    const derivedKey = await scrypt(password, salt, 64);
+    const storedKey = Buffer.from(keyHex, 'hex');
+    if (derivedKey.length !== storedKey.length) return false;
+    return timingSafeEqual(derivedKey, storedKey);
+  } catch {
+    return false;
+  }
+}
+
+function generateSessionToken() {
+  return randomBytes(32).toString('hex');
+}
+
+function hashToken(token) {
+  return createHmac('sha256', SESSION_SECRET).update(token).digest('hex');
+}
+
+async function getSessionUser(req) {
+  const authHeader = typeof req.get('authorization') === 'string' ? req.get('authorization').trim() : '';
+  const bearerPrefix = 'Bearer ';
+  if (!authHeader.startsWith(bearerPrefix)) return null;
+  const token = authHeader.slice(bearerPrefix.length).trim();
+  if (!token) return null;
+  const tokenHash = hashToken(token);
+  const sessions = await readSessions();
+  const now = Date.now();
+  const session = sessions.find(s => s.tokenHash === tokenHash && s.expiresAt > now);
+  if (!session) return null;
+  const users = await readUsers();
+  return users.find(u => u.id === session.userId) || null;
+}
+
+function requireUserAuth(req, res, next) {
+  getSessionUser(req).then(user => {
+    if (!user) {
+      res.status(401).json({ error: 'unauthorized' });
+      return;
+    }
+    req.user = user;
+    next();
+  }).catch(() => res.status(500).json({ error: 'auth-error' }));
+}
 
 app.use(express.json({ limit: '200kb' }));
 app.use((req, res, next) => {
@@ -860,6 +971,165 @@ app.get('/.well-known/assetlinks.json', (req, res) => {
       },
     },
   ]);
+});
+
+// --- Auth rate limiting ---
+app.use(['/api/auth/register', '/api/auth/login'], authLimiter);
+app.use('/api/analytics', analyticsLimiter);
+
+// --- Auth endpoints ---
+
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase().slice(0, 200) : '';
+    const password = typeof req.body?.password === 'string' ? req.body.password : '';
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      res.status(400).json({ error: 'invalid-email' });
+      return;
+    }
+    if (!password || password.length < 8 || password.length > 200) {
+      res.status(400).json({ error: 'invalid-password' });
+      return;
+    }
+    const users = await readUsers();
+    if (users.some(u => u.email === email)) {
+      res.status(409).json({ error: 'email-already-used' });
+      return;
+    }
+    const newUser = {
+      id: randomBytes(12).toString('hex'),
+      email,
+      passwordHash: await hashPassword(password),
+      createdAt: new Date().toISOString(),
+    };
+    users.push(newUser);
+    await writeJsonDataFile(usersFile, users);
+
+    const token = generateSessionToken();
+    const sessions = await readSessions();
+    sessions.push({ tokenHash: hashToken(token), userId: newUser.id, createdAt: new Date().toISOString(), expiresAt: Date.now() + SESSION_TTL_MS });
+    await writeJsonDataFile(sessionsFile, sessions);
+    res.status(201).json({ ok: true, token, user: { id: newUser.id, email: newUser.email } });
+  } catch {
+    res.status(500).json({ error: 'register-failed' });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase().slice(0, 200) : '';
+    const password = typeof req.body?.password === 'string' ? req.body.password : '';
+    if (!email || !password) {
+      res.status(400).json({ error: 'missing-credentials' });
+      return;
+    }
+    const users = await readUsers();
+    const user = users.find(u => u.email === email);
+    if (!user || !(await verifyPassword(password, user.passwordHash))) {
+      res.status(401).json({ error: 'invalid-credentials' });
+      return;
+    }
+    const token = generateSessionToken();
+    const sessions = await readSessions();
+    sessions.push({ tokenHash: hashToken(token), userId: user.id, createdAt: new Date().toISOString(), expiresAt: Date.now() + SESSION_TTL_MS });
+    await writeJsonDataFile(sessionsFile, sessions);
+    res.json({ ok: true, token, user: { id: user.id, email: user.email } });
+  } catch {
+    res.status(500).json({ error: 'login-failed' });
+  }
+});
+
+app.post('/api/auth/logout', async (req, res) => {
+  try {
+    const authHeader = typeof req.get('authorization') === 'string' ? req.get('authorization').trim() : '';
+    const bearerPrefix = 'Bearer ';
+    if (authHeader.startsWith(bearerPrefix)) {
+      const token = authHeader.slice(bearerPrefix.length).trim();
+      const sessions = await readSessions();
+      await writeJsonDataFile(sessionsFile, sessions.filter(s => s.tokenHash !== hashToken(token)));
+    }
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'logout-failed' });
+  }
+});
+
+app.get('/api/auth/me', requireUserAuth, (req, res) => {
+  res.json({ ok: true, user: { id: req.user.id, email: req.user.email } });
+});
+
+// --- Account state sync ---
+
+app.get('/api/account/state', requireUserAuth, async (req, res) => {
+  try {
+    const states = await readAccountStates();
+    res.json({ ok: true, state: states[req.user.id] || null });
+  } catch {
+    res.status(500).json({ error: 'account-state-read-failed' });
+  }
+});
+
+app.put('/api/account/state', requireUserAuth, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const safeState = {
+      quitDate: typeof body.quitDate === 'string' ? body.quitDate.trim().slice(0, 40) : '',
+      cigsPerDay: Number(body.cigsPerDay) || 0,
+      cigsPerPack: Number(body.cigsPerPack) || 0,
+      pricePerPack: Number(body.pricePerPack) || 0,
+      goalName: typeof body.goalName === 'string' ? body.goalName.trim().slice(0, 150) : '',
+      goalAmount: Number(body.goalAmount) || 0,
+      trackingState: {
+        isPaused: Boolean(body.trackingState?.isPaused),
+        pauseStartedAt: typeof body.trackingState?.pauseStartedAt === 'string' ? body.trackingState.pauseStartedAt.slice(0, 40) : null,
+        pausedDaysTotal: Number(body.trackingState?.pausedDaysTotal) || 0,
+      },
+      notificationPrefs: (typeof body.notificationPrefs === 'object' && body.notificationPrefs !== null) ? body.notificationPrefs : {},
+      updatedAt: new Date().toISOString(),
+    };
+    const states = await readAccountStates();
+    states[req.user.id] = safeState;
+    await writeJsonDataFile(accountStatesFile, states);
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'account-state-save-failed' });
+  }
+});
+
+// --- Analytics ---
+
+app.post('/api/analytics', async (req, res) => {
+  try {
+    const incomingEvents = Array.isArray(req.body?.events) ? req.body.events : [];
+    if (incomingEvents.length === 0) {
+      res.json({ ok: true, saved: 0 });
+      return;
+    }
+    const sanitized = incomingEvents.slice(0, 200).map(e => ({
+      name: typeof e.name === 'string' ? e.name.trim().slice(0, 80) : 'unknown',
+      meta: (typeof e.meta === 'object' && e.meta !== null) ? e.meta : {},
+      clientId: typeof e.clientId === 'string' ? e.clientId.trim().slice(0, 80) : '',
+      at: typeof e.at === 'string' ? e.at.slice(0, 40) : new Date().toISOString(),
+      receivedAt: new Date().toISOString(),
+      userAgent: (req.get('user-agent') || '').slice(0, 200),
+    }));
+    const existing = await readAnalyticsEvents();
+    const combined = [...existing, ...sanitized];
+    const MAX_STORED = 50000;
+    await writeJsonDataFile(analyticsFile, combined.length > MAX_STORED ? combined.slice(combined.length - MAX_STORED) : combined);
+    res.json({ ok: true, saved: sanitized.length });
+  } catch {
+    res.status(500).json({ error: 'analytics-save-failed' });
+  }
+});
+
+app.get('/api/analytics/export', requireAdminAuth, async (req, res) => {
+  try {
+    const events = await readAnalyticsEvents();
+    res.json({ ok: true, count: events.length, events });
+  } catch {
+    res.status(500).json({ error: 'analytics-export-failed' });
+  }
 });
 
 app.get('*', (req, res) => {
