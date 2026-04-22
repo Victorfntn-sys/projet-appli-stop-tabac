@@ -1180,9 +1180,30 @@ app.get('*', (req, res) => {
 });
 
 Promise.all([ensureDataFile(), ensureFeedbackFile(), ensureUserStatesCsvFile(), ensureUserStatesXlsxFile()]).then(() => {
-  app.listen(port, () => {
+  const server = app.listen(port, () => {
     console.log(`Server running on http://localhost:${port}`);
   });
+  
+  // Handle port already in use - try next port
+  server.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+      const nextPort = port + 1;
+      console.warn(`Port ${port} is already in use, trying ${nextPort}...`);
+      const retryServer = app.listen(nextPort, () => {
+        console.log(`Server running on http://localhost:${nextPort}`);
+      });
+      retryServer.on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+          console.error(`Ports ${port} and ${nextPort} are both in use. Please free a port or set PORT env var.`);
+          process.exit(1);
+        }
+        throw err;
+      });
+    } else {
+      throw error;
+    }
+  });
+
   setInterval(() => {
     sendScheduledNotifications().catch(error => console.error('Scheduled push failed', error));
   }, 60 * 1000);
