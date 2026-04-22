@@ -10,9 +10,9 @@ const APP_ASSETS = [
   './icon-512.png',
   './icon-192.svg',
   './icon-512.svg',
-  'https://cdn.jsdelivr.net/npm/chart.js',
-  'https://cdn.jsdelivr.net/npm/flatpickr',
-  'https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css'
+  'https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js',
+  'https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js',
+  'https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css'
 ];
 
 const NETWORK_FIRST_EXTENSIONS = ['.html', '.css', '.js', '.webmanifest'];

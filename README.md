@@ -1,5 +1,8 @@
 # Calculateur d'economies - arret du tabac
 
+[![CI](https://github.com/Victorfntn-sys/projet-appli-stop-tabac/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Victorfntn-sys/projet-appli-stop-tabac/actions/workflows/ci.yml)
+[![Release Check](https://github.com/Victorfntn-sys/projet-appli-stop-tabac/actions/workflows/release-check.yml/badge.svg?branch=main)](https://github.com/Victorfntn-sys/projet-appli-stop-tabac/actions/workflows/release-check.yml)
+
 Application web de suivi d'arret du tabac avec objectifs, badges, graphique, mode pause, notifications locales et backend Web Push pour les rappels hors page.
 
 ## Fonctionnalites
@@ -160,7 +163,6 @@ ADMIN_API_KEY=choisir_une_cle_admin_forte
 - Le bouton d'export dans l'interface telecharge toutes les donnees utilisateurs.
 - Cet export est protege par une cle admin (`ADMIN_API_KEY` ou `EXPORT_ADMIN_KEY`).
 - Requete recommandee : header `x-admin-key` ou `Authorization: Bearer <cle>`.
-- Compatibilite legacy : la query `?key=` reste acceptee temporairement.
 
 ## Limites techniques
 
@@ -174,7 +176,9 @@ ADMIN_API_KEY=choisir_une_cle_admin_forte
 npm install
 npm run generate:vapid
 npm start
+npm run check:security
 npm run check:release
+APP_BASE_URL=https://votre-app.onrender.com npm run check:live
 ```
 
 ## Outils developpeur (admin)
@@ -182,6 +186,7 @@ npm run check:release
 - Endpoint de diagnostic admin: `/api/admin/status`
 - Auth requise: header `x-admin-key: <ADMIN_API_KEY>` (ou `Authorization: Bearer <ADMIN_API_KEY>`)
 - Utilite: verifier rapidement l'etat de configuration prod sans exposer les secrets
+- Guide de deploiement/validation Render: `RENDER_DEPLOY_AND_VALIDATE.md`
 
 ## Publication sur le Play Store (TWA)
 

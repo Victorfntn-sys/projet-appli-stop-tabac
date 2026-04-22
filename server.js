@@ -10,6 +10,18 @@ const app = express();
 app.disable('x-powered-by');
 app.set('etag', false);
 const port = Number(process.env.PORT) || 3000;
+const publicStaticFiles = new Set([
+  '/index.html',
+  '/privacy.html',
+  '/styles.css',
+  '/script.js',
+  '/sw.js',
+  '/manifest.webmanifest',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-192.svg',
+  '/icon-512.svg',
+]);
 const dataDir = path.join(__dirname, 'data');
 const dataFile = path.join(dataDir, 'subscriptions.json');
 const feedbackFile = path.join(dataDir, 'feedback.json');
@@ -31,15 +43,122 @@ if (vapidPublicKey && vapidPrivateKey) {
   webPush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 }
 
+function getClientIp(req) {
+  const forwardedFor = typeof req.headers['x-forwarded-for'] === 'string'
+    ? req.headers['x-forwarded-for'].split(',')[0].trim()
+    : '';
+  return forwardedFor || req.ip || 'unknown';
+}
+
+function parsePositiveIntEnv(name, fallback) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === null || raw === '') {
+    return fallback;
+  }
+  const parsed = Number.parseInt(String(raw), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return parsed;
+}
+
+function createRateLimiter({ windowMs, maxRequests }) {
+  const buckets = new Map();
+
+  return (req, res, next) => {
+    const now = Date.now();
+    const key = `${getClientIp(req)}:${req.path}`;
+    const current = buckets.get(key);
+
+    if (!current || current.resetAt <= now) {
+      buckets.set(key, { count: 1, resetAt: now + windowMs });
+      next();
+      return;
+    }
+
+    if (current.count >= maxRequests) {
+      const retryAfterSeconds = Math.max(1, Math.ceil((current.resetAt - now) / 1000));
+      res.setHeader('Retry-After', String(retryAfterSeconds));
+      res.status(429).json({ error: 'too-many-requests' });
+      return;
+    }
+
+    current.count += 1;
+
+    if (buckets.size > 5000) {
+      for (const [bucketKey, bucketValue] of buckets.entries()) {
+        if (bucketValue.resetAt <= now) {
+          buckets.delete(bucketKey);
+        }
+      }
+    }
+
+    next();
+  };
+}
+
+function isAllowedStaticRequest(reqPath) {
+  if (!reqPath || reqPath === '/') {
+    return true;
+  }
+  if (reqPath.startsWith('/api/') || reqPath === '/healthz' || reqPath === '/.well-known/assetlinks.json') {
+    return true;
+  }
+
+  const extension = path.extname(reqPath);
+  if (!extension) {
+    return true;
+  }
+
+  return publicStaticFiles.has(reqPath);
+}
+
+const rateLimitWindowMs = parsePositiveIntEnv('RATE_LIMIT_WINDOW_MS', 10 * 60 * 1000);
+const pushWriteLimiter = createRateLimiter({
+  windowMs: rateLimitWindowMs,
+  maxRequests: parsePositiveIntEnv('RATE_LIMIT_PUSH_MAX_REQUESTS', 300),
+});
+const userStateLimiter = createRateLimiter({
+  windowMs: rateLimitWindowMs,
+  maxRequests: parsePositiveIntEnv('RATE_LIMIT_USER_STATE_MAX_REQUESTS', 120),
+});
+const feedbackLimiter = createRateLimiter({
+  windowMs: rateLimitWindowMs,
+  maxRequests: parsePositiveIntEnv('RATE_LIMIT_FEEDBACK_MAX_REQUESTS', 25),
+});
+
 app.use(express.json({ limit: '200kb' }));
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  res.setHeader('Content-Security-Policy', [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "frame-ancestors 'none'",
+    "object-src 'none'",
+    "form-action 'self'",
+    "script-src 'self' https://cdn.jsdelivr.net",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "img-src 'self' data: https:",
+    "connect-src 'self'",
+    "worker-src 'self'",
+  ].join('; '));
   next();
 });
-app.use(express.static(__dirname));
+app.use((req, res, next) => {
+  if ((req.method === 'GET' || req.method === 'HEAD') && !isAllowedStaticRequest(req.path)) {
+    res.status(404).send('Not found');
+    return;
+  }
+  next();
+});
+app.use(express.static(__dirname, { index: false, dotfiles: 'deny' }));
+app.use(['/api/push/subscribe', '/api/push/state', '/api/push/unsubscribe'], pushWriteLimiter);
+app.use('/api/user-state', userStateLimiter);
+app.use('/api/feedback', feedbackLimiter);
 
 async function ensureDataFile() {
   await fs.mkdir(dataDir, { recursive: true });
@@ -191,10 +310,6 @@ function getProvidedAdminKey(req) {
   const bearerPrefix = 'Bearer ';
   if (authorization.startsWith(bearerPrefix) && authorization.length > bearerPrefix.length) {
     return authorization.slice(bearerPrefix.length).trim();
-  }
-
-  if (typeof req.query?.key === 'string') {
-    return req.query.key.trim();
   }
 
   return '';
