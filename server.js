@@ -118,6 +118,11 @@ function isAllowedStaticRequest(reqPath) {
     return true;
   }
 
+  // Reject dotfiles (e.g., /.env, /.git/config)
+  if (reqPath.includes('/.')) {
+    return false;
+  }
+
   const extension = path.extname(reqPath);
   if (!extension) {
     return true;
