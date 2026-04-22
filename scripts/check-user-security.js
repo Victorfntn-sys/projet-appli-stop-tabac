@@ -197,6 +197,30 @@ async function main() {
       else pass('styles.css accessible');
     });
 
+    await test('GET /admin.html should return 200', async () => {
+      const res = await request('GET', '/admin.html');
+      if (res.status !== 200) fail(`  Got ${res.status}, expected 200`);
+      else pass('admin.html accessible');
+    });
+
+    await test('GET /api/admin/users without key should return 403', async () => {
+      const res = await request('GET', '/api/admin/users');
+      if (res.status !== 403) fail(`  Got ${res.status}, expected 403`);
+      else pass('/api/admin/users requires auth key');
+    });
+
+    await test('GET /api/admin/sessions without key should return 403', async () => {
+      const res = await request('GET', '/api/admin/sessions');
+      if (res.status !== 403) fail(`  Got ${res.status}, expected 403`);
+      else pass('/api/admin/sessions requires auth key');
+    });
+
+    await test('GET /api/admin/feedback without key should return 403', async () => {
+      const res = await request('GET', '/api/admin/feedback');
+      if (res.status !== 403) fail(`  Got ${res.status}, expected 403`);
+      else pass('/api/admin/feedback requires auth key');
+    });
+
     // ====== Section 5: Routes utilisateur doivent être accessibles ======
     await test('POST /api/auth/register should return 400 (invalid data)', async () => {
       const res = await request('POST', '/api/auth/register', { body: {} });

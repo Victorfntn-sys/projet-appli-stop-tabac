@@ -15,6 +15,7 @@ app.set('etag', false);
 const port = Number(process.env.PORT) || 3000;
 const publicStaticFiles = new Set([
   '/index.html',
+  '/admin.html',
   '/privacy.html',
   '/styles.css',
   '/script.js',
@@ -749,6 +750,43 @@ app.get('/api/admin/status', requireAdminAuth, async (req, res) => {
     assetLinksConfigured: Boolean(twaPackageName && twaSha256Fingerprints.length > 0),
     timestamp: new Date().toISOString(),
   });
+});
+
+app.get('/api/admin/users', requireAdminAuth, async (req, res) => {
+  try {
+    const users = await readUsers();
+    res.json(users.map(u => ({
+      id: u.id,
+      email: u.email,
+      createdAt: u.createdAt,
+    })));
+  } catch {
+    res.status(500).json({ error: 'admin-users-failed' });
+  }
+});
+
+app.get('/api/admin/sessions', requireAdminAuth, async (req, res) => {
+  try {
+    const sessions = await readSessions();
+    res.json(sessions.map(s => ({
+      tokenHash: s.tokenHash.slice(0, 16),
+      userId: s.userId,
+      createdAt: s.createdAt,
+      expiresAt: s.expiresAt,
+    })));
+  } catch {
+    res.status(500).json({ error: 'admin-sessions-failed' });
+  }
+});
+
+app.get('/api/admin/feedback', requireAdminAuth, async (req, res) => {
+  try {
+    const data = await fs.promises.readFile(feedbackFile, 'utf-8');
+    const feedback = JSON.parse(data || '[]');
+    res.json(feedback);
+  } catch {
+    res.json([]);
+  }
 });
 
 app.get('/api/push/public-key', (req, res) => {

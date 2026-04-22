@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+    }
+
+    .admin-container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .admin-header h1 {
+      margin: 0;
+      font-size: 1.8rem;
+      color: #4a90d9;
+    }
+
+    .admin-logout {
+      padding: 10px 20px;
+      background: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+
+    .admin-logout:hover {
+      background: #c82333;
+    }
+
+    .login-panel {
+      background: white;
+      padding: 40px;
+      border-radius: 12px;
+      max-width: 500px;
+      margin: 100px auto;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+
+    .login-panel h2 {
+      margin-top: 0;
+      color: #4a90d9;
+    }
+
+    .login-panel label {
+      display: block;
+      margin-top: 15px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .login-panel input {
+      width: 100%;
+      padding: 12px;
+      border: 1.5px solid #ddd;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+
+    .login-panel button {
+      width: 100%;
+      margin-top: 20px;
+      padding: 12px;
+      background: #4a90d9;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .login-panel button:hover {
+      background: #357abd;
+    }
+
+    .login-error {
+      color: #dc3545;
+      margin-top: 10px;
+      font-size: 0.9rem;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .stat-card h3 {
+      margin: 0 0 10px;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #888;
+    }
+
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #4a90d9;
+    }
+
+    .stat-card.warning .stat-value {
+      color: #ff9800;
+    }
+
+    .stat-card.danger .stat-value {
+      color: #dc3545;
+    }
+
+    .stat-card.success .stat-value {
+      color: #28a745;
+    }
+
+    .data-section {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
+
+    .data-section h2 {
+      margin-top: 0;
+      margin-bottom: 15px;
+      font-size: 1.3rem;
+      color: #333;
+      border-bottom: 2px solid #4a90d9;
+      padding-bottom: 10px;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    .data-table th {
+      background: #f5f5f5;
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid #ddd;
+    }
+
+    .data-table td {
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .data-table tr:hover {
+      background: #f9f9f9;
+    }
+
+    .chart-container {
+      margin-top: 20px;
+      position: relative;
+      height: 300px;
+    }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      color: #888;
+    }
+
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #4a90d9;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin-right: 10px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .error-message {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      color: #856404;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+    }
+
+    .export-btn {
+      padding: 10px 20px;
+      background: #28a745;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      margin-top: 15px;
+    }
+
+    .export-btn:hover {
+      background: #218838;
+    }
+
+    @media (max-width: 768px) {
+      .admin-header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .stat-value {
+        font-size: 2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-container">
+    <div id="loginPanel" class="login-panel">
+      <h2>Admin Dashboard</h2>
+      <p>Entrez votre clé admin pour accéder au dashboard.</p>
+      <label for="adminKey">Clé Admin</label>
+      <input id="adminKey" type="password" placeholder="Clé admin" />
+      <button onclick="handleLogin()">Se connecter</button>
+      <div id="loginError" class="login-error"></div>
+    </div>
+
+    <div id="dashboard" hidden>
+      <div class="admin-header">
+        <h1>📊 Dashboard Admin</h1>
+        <button class="admin-logout" onclick="handleLogout()">Se déconnecter</button>
+      </div>
+
+      <div id="errorMessage"></div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <h3>Utilisateurs inscrits</h3>
+          <div class="stat-value" id="userCount">–</div>
+        </div>
+        <div class="stat-card">
+          <h3>Sessions actives</h3>
+          <div class="stat-value" id="sessionCount">–</div>
+        </div>
+        <div class="stat-card success">
+          <h3>Événements enregistrés</h3>
+          <div class="stat-value" id="eventCount">–</div>
+        </div>
+        <div class="stat-card">
+          <h3>Feedback reçu</h3>
+          <div class="stat-value" id="feedbackCount">–</div>
+        </div>
+      </div>
+
+      <div class="data-section">
+        <h2>Utilisateurs</h2>
+        <div id="usersLoading" class="loading">
+          <div class="spinner"></div>
+          Chargement...
+        </div>
+        <table id="usersTable" class="data-table" hidden>
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>ID</th>
+              <th>Créé</th>
+            </tr>
+          </thead>
+          <tbody id="usersBody"></tbody>
+        </table>
+      </div>
+
+      <div class="data-section">
+        <h2>Sessions actives</h2>
+        <div id="sessionsLoading" class="loading">
+          <div class="spinner"></div>
+          Chargement...
+        </div>
+        <table id="sessionsTable" class="data-table" hidden>
+          <thead>
+            <tr>
+              <th>User ID</th>
+              <th>Créée</th>
+              <th>Expire</th>
+              <th>Âge</th>
+            </tr>
+          </thead>
+          <tbody id="sessionsBody"></tbody>
+        </table>
+      </div>
+
+      <div class="data-section">
+        <h2>Événements analytics (récents)</h2>
+        <div id="eventsLoading" class="loading">
+          <div class="spinner"></div>
+          Chargement...
+        </div>
+        <table id="eventsTable" class="data-table" hidden>
+          <thead>
+            <tr>
+              <th>Événement</th>
+              <th>Client</th>
+              <th>Reçu</th>
+              <th>Détails</th>
+            </tr>
+          </thead>
+          <tbody id="eventsBody"></tbody>
+        </table>
+        <button class="export-btn" onclick="downloadEventsJson()">📥 Télécharger JSON</button>
+      </div>
+
+      <div class="data-section">
+        <h2>Feedback utilisateurs</h2>
+        <div id="feedbackLoading" class="loading">
+          <div class="spinner"></div>
+          Chargement...
+        </div>
+        <table id="feedbackTable" class="data-table" hidden>
+          <thead>
+            <tr>
+              <th>Message</th>
+              <th>Email</th>
+              <th>Reçu</th>
+            </tr>
+          </thead>
+          <tbody id="feedbackBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_ADMIN_KEY = 'admin-dashboard-key';
+
+    function getStoredAdminKey() {
+      return sessionStorage.getItem(STORAGE_ADMIN_KEY) || null;
+    }
+
+    function saveAdminKey(key) {
+      sessionStorage.setItem(STORAGE_ADMIN_KEY, key);
+    }
+
+    function clearAdminKey() {
+      sessionStorage.removeItem(STORAGE_ADMIN_KEY);
+    }
+
+    async function makeAdminRequest(path, method = 'GET', body = null) {
+      const key = getStoredAdminKey();
+      if (!key) throw new Error('No admin key');
+
+      const options = {
+        method,
+        headers: { 'x-admin-key': key, 'Content-Type': 'application/json' },
+      };
+      if (body) options.body = JSON.stringify(body);
+
+      const res = await fetch(path, options);
+      if (res.status === 403) {
+        clearAdminKey();
+        location.reload();
+        throw new Error('Admin key invalid');
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }
+
+    async function handleLogin() {
+      const keyInput = document.getElementById('adminKey');
+      const errorDiv = document.getElementById('loginError');
+      errorDiv.textContent = '';
+
+      try {
+        const key = keyInput.value.trim();
+        if (!key) {
+          errorDiv.textContent = 'Veuillez entrer une clé admin.';
+          return;
+        }
+
+        saveAdminKey(key);
+        // Test the key
+        await makeAdminRequest('/api/admin/status');
+        showDashboard();
+        await loadAllData();
+      } catch (e) {
+        clearAdminKey();
+        errorDiv.textContent = e.message || 'Clé admin invalide';
+      }
+    }
+
+    function handleLogout() {
+      clearAdminKey();
+      location.reload();
+    }
+
+    function showDashboard() {
+      document.getElementById('loginPanel').hidden = true;
+      document.getElementById('dashboard').hidden = false;
+    }
+
+    async function loadAllData() {
+      try {
+        // Load users
+        const users = await makeAdminRequest('/api/admin/users');
+        displayUsers(users);
+
+        // Load sessions
+        const sessions = await makeAdminRequest('/api/admin/sessions');
+        displaySessions(sessions);
+
+        // Load events
+        const eventsData = await makeAdminRequest('/api/analytics/export');
+        displayEvents(eventsData.events || []);
+
+        // Load feedback
+        const feedback = await makeAdminRequest('/api/admin/feedback');
+        displayFeedback(feedback);
+
+        // Update stats
+        document.getElementById('userCount').textContent = users.length;
+        document.getElementById('sessionCount').textContent = sessions.length;
+        document.getElementById('eventCount').textContent = (eventsData.events || []).length;
+        document.getElementById('feedbackCount').textContent = feedback.length;
+      } catch (e) {
+        const errorDiv = document.getElementById('errorMessage');
+        errorDiv.innerHTML = `<div class="error-message">Erreur: ${e.message}</div>`;
+      }
+    }
+
+    function displayUsers(users) {
+      const tbody = document.getElementById('usersBody');
+      tbody.innerHTML = users
+        .slice(0, 50)
+        .map(u => `
+          <tr>
+            <td>${u.email}</td>
+            <td><code style="font-size:0.8em;background:#f5f5f5;padding:2px 4px;border-radius:3px;">${u.id.slice(0, 12)}</code></td>
+            <td>${new Date(u.createdAt).toLocaleDateString('fr-FR')}</td>
+          </tr>
+        `)
+        .join('');
+      document.getElementById('usersLoading').hidden = true;
+      document.getElementById('usersTable').hidden = false;
+    }
+
+    function displaySessions(sessions) {
+      const tbody = document.getElementById('sessionsBody');
+      const now = Date.now();
+      tbody.innerHTML = sessions
+        .slice(0, 50)
+        .map(s => {
+          const createdDate = new Date(s.createdAt);
+          const expiresDate = new Date(s.expiresAt);
+          const ageMs = now - createdDate.getTime();
+          const ageHours = Math.floor(ageMs / (1000 * 60 * 60));
+          const ageDays = Math.floor(ageHours / 24);
+          const ageStr = ageDays > 0 ? `${ageDays}j` : `${ageHours}h`;
+          return `
+            <tr>
+              <td><code style="font-size:0.8em;background:#f5f5f5;padding:2px 4px;border-radius:3px;">${s.userId.slice(0, 12)}</code></td>
+              <td>${createdDate.toLocaleString('fr-FR')}</td>
+              <td>${expiresDate.toLocaleString('fr-FR')}</td>
+              <td>${ageStr}</td>
+            </tr>
+          `;
+        })
+        .join('');
+      document.getElementById('sessionsLoading').hidden = true;
+      document.getElementById('sessionsTable').hidden = false;
+    }
+
+    function displayEvents(events) {
+      const tbody = document.getElementById('eventsBody');
+      tbody.innerHTML = events
+        .slice(-50)
+        .reverse()
+        .map(e => `
+          <tr>
+            <td><strong>${e.name}</strong></td>
+            <td><code style="font-size:0.8em;background:#f5f5f5;padding:2px 4px;border-radius:3px;">${e.clientId.slice(0, 12)}</code></td>
+            <td>${new Date(e.receivedAt).toLocaleString('fr-FR')}</td>
+            <td>${JSON.stringify(e.meta || {}).slice(0, 50)}${JSON.stringify(e.meta || {}).length > 50 ? '...' : ''}</td>
+          </tr>
+        `)
+        .join('');
+      document.getElementById('eventsLoading').hidden = true;
+      document.getElementById('eventsTable').hidden = false;
+    }
+
+    function displayFeedback(items) {
+      const tbody = document.getElementById('feedbackBody');
+      tbody.innerHTML = items
+        .slice(-50)
+        .reverse()
+        .map(f => `
+          <tr>
+            <td>${f.message.slice(0, 80)}${f.message.length > 80 ? '...' : ''}</td>
+            <td>${f.contact || '–'}</td>
+            <td>${new Date(f.timestamp).toLocaleString('fr-FR')}</td>
+          </tr>
+        `)
+        .join('');
+      document.getElementById('feedbackLoading').hidden = true;
+      document.getElementById('feedbackTable').hidden = false;
+    }
+
+    function downloadEventsJson() {
+      const key = getStoredAdminKey();
+      if (!key) {
+        alert('Clé admin manquante');
+        return;
+      }
+      // Redirect to download endpoint with admin key in header
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', '/api/analytics/export');
+      xhr.setRequestHeader('x-admin-key', key);
+      xhr.responseType = 'json';
+      xhr.onload = () => {
+        const data = xhr.response;
+        const json = JSON.stringify(data.events || [], null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `analytics-${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+      };
+      xhr.onerror = () => alert('Erreur lors du téléchargement');
+      xhr.send();
+    }
+
+    // Check if already logged in
+    window.addEventListener('DOMContentLoaded', () => {
+      if (getStoredAdminKey()) {
+        showDashboard();
+        loadAllData();
+        // Refresh data every 30 seconds
+        setInterval(loadAllData, 30000);
+      }
+      document.getElementById('adminKey').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleLogin();
+      });
+    });
+  </script>
+</body>
+</html>
