@@ -37,6 +37,7 @@ Date: 2026-04-20
 
 ## 6) Verification finale
 
+- [ ] `npm run check:playstore:strict` passe sans FAIL
 - [ ] /healthz retourne ok: true
 - [ ] /manifest.webmanifest et /privacy.html accessibles en prod
 - [ ] Parcours complet utilisateur execute une fois sur mobile

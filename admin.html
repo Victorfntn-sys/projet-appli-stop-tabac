@@ -267,6 +267,34 @@
       padding: 9px 14px;
     }
 
+    .mini-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .mini-stat {
+      background: #f8fbff;
+      border: 1px solid #e3edf7;
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+
+    .mini-stat-label {
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #6a7a8a;
+      margin-bottom: 4px;
+    }
+
+    .mini-stat-value {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #2e5f8f;
+    }
+
     @media (max-width: 768px) {
       .admin-header {
         flex-direction: column;
@@ -319,6 +347,36 @@
         <div class="stat-card">
           <h3>Feedback reçu</h3>
           <div class="stat-value" id="feedbackCount">–</div>
+        </div>
+      </div>
+
+      <div class="data-section">
+        <h2>Tendances temporelles</h2>
+        <div class="section-tools">
+          <select id="activityRange">
+            <option value="7">7 derniers jours</option>
+            <option value="30" selected>30 derniers jours</option>
+            <option value="90">90 derniers jours</option>
+            <option value="365">365 derniers jours</option>
+          </select>
+          <div class="tool-spacer"></div>
+        </div>
+        <div class="mini-stats">
+          <div class="mini-stat">
+            <div class="mini-stat-label">Total événements période</div>
+            <div id="rangeEventTotal" class="mini-stat-value">0</div>
+          </div>
+          <div class="mini-stat">
+            <div class="mini-stat-label">Clients uniques période</div>
+            <div id="rangeUniqueClients" class="mini-stat-value">0</div>
+          </div>
+          <div class="mini-stat">
+            <div class="mini-stat-label">Moyenne quotidienne</div>
+            <div id="rangeDailyAvg" class="mini-stat-value">0</div>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="activityChart" aria-label="Tendance des événements" role="img"></canvas>
         </div>
       </div>
 
@@ -419,9 +477,30 @@
           <tbody id="feedbackBody"></tbody>
         </table>
       </div>
+
+      <div class="data-section">
+        <h2>Audit admin (récents)</h2>
+        <div id="auditLoading" class="loading">
+          <div class="spinner"></div>
+          Chargement...
+        </div>
+        <table id="auditTable" class="data-table" hidden>
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Path</th>
+              <th>Méthode</th>
+              <th>IP</th>
+              <th>Résultat</th>
+            </tr>
+          </thead>
+          <tbody id="auditBody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" integrity="sha384-JUh163oCRItcbPme8pYnROHQMC6fNKTBWtRG3I3I0erJkzNgL7uxKlNwcrcFKeqF" crossorigin="anonymous"></script>
   <script src="./admin.js"></script>
 </body>
 </html>

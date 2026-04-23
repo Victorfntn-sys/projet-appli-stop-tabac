@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 
 const fs = require('fs/promises');
+const fsSync = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
+const strictMode = process.argv.includes('--strict');
 
 let hasFailure = false;
 let hasWarning = false;
@@ -39,6 +41,25 @@ async function readJson(relPath) {
 
 function isHttpsUrl(value) {
   return typeof value === 'string' && /^https:\/\//i.test(value);
+}
+
+function isValidPackageId(value) {
+  return typeof value === 'string' && /^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$/i.test(value);
+}
+
+function readPngDimensions(relPath) {
+  const filePath = path.join(root, relPath);
+  const buffer = fsSync.readFileSync(filePath);
+  if (buffer.length < 24) {
+    throw new Error('invalid-png');
+  }
+  const signature = buffer.subarray(0, 8).toString('hex');
+  if (signature !== '89504e470d0a1a0a') {
+    throw new Error('invalid-png-signature');
+  }
+  const width = buffer.readUInt32BE(16);
+  const height = buffer.readUInt32BE(20);
+  return { width, height };
 }
 
 async function main() {
@@ -81,7 +102,7 @@ async function main() {
   }
 
   if (twaManifest) {
-    if (typeof twaManifest.packageId === 'string' && twaManifest.packageId.includes('.')) {
+    if (isValidPackageId(twaManifest.packageId)) {
       pass('twa packageId is set');
     } else {
       fail('twa packageId missing or invalid');
@@ -91,6 +112,12 @@ async function main() {
       pass('twa host is set');
     } else {
       fail('twa host is missing');
+    }
+
+    if (String(twaManifest.host || '').includes('localhost')) {
+      fail('twa host cannot be localhost for Play Store');
+    } else {
+      pass('twa host is not localhost');
     }
 
     if (isHttpsUrl(twaManifest.webManifestUrl)) {
@@ -103,6 +130,12 @@ async function main() {
       pass('twa iconUrl uses HTTPS');
     } else {
       fail('twa iconUrl must use HTTPS');
+    }
+
+    if (Number.isInteger(twaManifest.appVersionCode) && twaManifest.appVersionCode > 0) {
+      pass('twa appVersionCode is a positive integer');
+    } else {
+      fail('twa appVersionCode must be a positive integer');
     }
   }
 
@@ -122,18 +155,51 @@ async function main() {
     } else {
       fail('web manifest must include 192x192 and 512x512 icons');
     }
+
+    const startUrl = String(webManifest.start_url || '');
+    if (startUrl.includes('index.html')) {
+      pass('web manifest start_url points to index.html');
+    } else {
+      warn('web manifest start_url is unusual (expected index.html)');
+    }
+  }
+
+  try {
+    const icon192 = readPngDimensions('icon-192.png');
+    if (icon192.width === 192 && icon192.height === 192) {
+      pass('icon-192.png dimensions are exactly 192x192');
+    } else {
+      fail(`icon-192.png dimensions must be 192x192 (found ${icon192.width}x${icon192.height})`);
+    }
+  } catch {
+    fail('icon-192.png cannot be parsed as PNG');
+  }
+
+  try {
+    const icon512 = readPngDimensions('icon-512.png');
+    if (icon512.width === 512 && icon512.height === 512) {
+      pass('icon-512.png dimensions are exactly 512x512');
+    } else {
+      fail(`icon-512.png dimensions must be 512x512 (found ${icon512.width}x${icon512.height})`);
+    }
+  } catch {
+    fail('icon-512.png cannot be parsed as PNG');
   }
 
   if (process.env.ADMIN_API_KEY) {
     pass('ADMIN_API_KEY is set in current environment');
   } else {
-    warn('ADMIN_API_KEY is not set in current environment (required in production)');
+    strictMode
+      ? fail('ADMIN_API_KEY is not set in current environment (required in strict mode)')
+      : warn('ADMIN_API_KEY is not set in current environment (required in production)');
   }
 
   if (process.env.TWA_PACKAGE_NAME && process.env.TWA_SHA256_CERT_FINGERPRINTS) {
     pass('TWA_PACKAGE_NAME and TWA_SHA256_CERT_FINGERPRINTS are set');
   } else {
-    warn('TWA_PACKAGE_NAME / TWA_SHA256_CERT_FINGERPRINTS not set in current environment');
+    strictMode
+      ? fail('TWA_PACKAGE_NAME / TWA_SHA256_CERT_FINGERPRINTS not set in strict mode')
+      : warn('TWA_PACKAGE_NAME / TWA_SHA256_CERT_FINGERPRINTS not set in current environment');
   }
 
   console.log('--------------------------');
@@ -143,7 +209,7 @@ async function main() {
   }
 
   if (hasWarning) {
-    console.log('Play Store readiness: PASS with warnings');
+    console.log(`Play Store readiness: PASS with warnings${strictMode ? ' (strict mode not enforced on warnings)' : ''}`);
     process.exit(0);
   }
 

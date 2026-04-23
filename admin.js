@@ -4,6 +4,8 @@ let allUsers = [];
 let allSessions = [];
 let allEvents = [];
 let allFeedback = [];
+let allAuditEntries = [];
+let activityChart = null;
 
 function getStoredAdminKey() {
   return sessionStorage.getItem(STORAGE_ADMIN_KEY) || null;
@@ -147,12 +149,16 @@ async function loadAllData() {
     const eventsData = await makeAdminRequest('/api/analytics/export');
     allEvents = eventsData.events || [];
     allFeedback = await makeAdminRequest('/api/admin/feedback');
+    const auditData = await makeAdminRequest('/api/admin/audit?limit=200');
+    allAuditEntries = auditData.entries || [];
 
     refreshEventTypeFilter();
     renderUsers();
     renderSessions();
     renderEvents();
     renderFeedback();
+    renderAudit();
+    renderTemporalChart();
 
     document.getElementById('userCount').textContent = allUsers.length;
     document.getElementById('sessionCount').textContent = allSessions.length;
@@ -162,6 +168,105 @@ async function loadAllData() {
     const errorDiv = document.getElementById('errorMessage');
     errorDiv.innerHTML = `<div class="error-message">Erreur: ${escapeHtml(e.message)}</div>`;
   }
+}
+
+function getPeriodStart(daysBack) {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - (daysBack - 1));
+  return d;
+}
+
+function getBucketKey(date, range) {
+  if (range <= 31) {
+    return date.toISOString().slice(0, 10);
+  }
+  const day = date.getDay();
+  const diff = day === 0 ? 6 : day - 1;
+  const monday = new Date(date);
+  monday.setDate(date.getDate() - diff);
+  monday.setHours(0, 0, 0, 0);
+  return monday.toISOString().slice(0, 10);
+}
+
+function labelFromBucketKey(key, range) {
+  const date = new Date(key);
+  if (range <= 31) {
+    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+  }
+  return `Sem. ${date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}`;
+}
+
+function renderTemporalChart() {
+  const range = Number.parseInt(document.getElementById('activityRange')?.value || '30', 10);
+  const start = getPeriodStart(range);
+
+  const eventsInRange = allEvents.filter(e => {
+    const date = new Date(e.receivedAt || e.at || Date.now());
+    return Number.isFinite(date.getTime()) && date >= start;
+  });
+
+  const buckets = new Map();
+  for (const event of eventsInRange) {
+    const d = new Date(event.receivedAt || event.at || Date.now());
+    const key = getBucketKey(d, range);
+    buckets.set(key, (buckets.get(key) || 0) + 1);
+  }
+
+  const sortedKeys = [...buckets.keys()].sort();
+  const labels = sortedKeys.map(key => labelFromBucketKey(key, range));
+  const values = sortedKeys.map(key => buckets.get(key));
+  const uniqueClients = new Set(eventsInRange.map(e => e.clientId).filter(Boolean)).size;
+  const avgDaily = range > 0 ? (eventsInRange.length / range) : 0;
+
+  const totalEl = document.getElementById('rangeEventTotal');
+  const uniqEl = document.getElementById('rangeUniqueClients');
+  const avgEl = document.getElementById('rangeDailyAvg');
+  if (totalEl) totalEl.textContent = String(eventsInRange.length);
+  if (uniqEl) uniqEl.textContent = String(uniqueClients);
+  if (avgEl) avgEl.textContent = avgDaily.toFixed(2);
+
+  const canvas = document.getElementById('activityChart');
+  if (!canvas || typeof Chart === 'undefined') {
+    return;
+  }
+
+  if (activityChart) {
+    activityChart.destroy();
+  }
+
+  activityChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Événements',
+          data: values,
+          borderColor: '#2f80ed',
+          backgroundColor: 'rgba(47, 128, 237, 0.18)',
+          fill: true,
+          tension: 0.25,
+          pointRadius: 2,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+        },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { precision: 0 },
+        },
+      },
+    },
+  });
 }
 
 function renderUsers() {
@@ -245,6 +350,28 @@ function renderFeedback() {
   document.getElementById('feedbackTable').hidden = false;
 }
 
+function renderAudit() {
+  const tbody = document.getElementById('auditBody');
+  if (!tbody) return;
+
+  tbody.innerHTML = allAuditEntries
+    .slice(-150)
+    .reverse()
+    .map(entry => `
+      <tr>
+        <td>${new Date(entry.timestamp).toLocaleString('fr-FR')}</td>
+        <td>${escapeHtml(entry.path || '-')}</td>
+        <td>${escapeHtml(entry.method || '-')}</td>
+        <td>${escapeHtml(entry.ip || '-')}</td>
+        <td>${escapeHtml(entry.outcome || '-')}</td>
+      </tr>
+    `)
+    .join('');
+
+  document.getElementById('auditLoading').hidden = true;
+  document.getElementById('auditTable').hidden = false;
+}
+
 function downloadEventsJson() {
   const key = getStoredAdminKey();
   if (!key) {
@@ -313,6 +440,7 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('eventsSearch')?.addEventListener('input', renderEvents);
   document.getElementById('eventsTypeFilter')?.addEventListener('change', renderEvents);
   document.getElementById('feedbackSearch')?.addEventListener('input', renderFeedback);
+  document.getElementById('activityRange')?.addEventListener('change', renderTemporalChart);
 
   if (getStoredAdminKey()) {
     showDashboard();

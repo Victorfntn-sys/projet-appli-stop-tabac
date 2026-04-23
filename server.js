@@ -53,6 +53,7 @@ const usersFile = path.join(dataDir, 'users.json');
 const sessionsFile = path.join(dataDir, 'sessions.json');
 const accountStatesFile = path.join(dataDir, 'account-states.json');
 const analyticsFile = path.join(dataDir, 'analytics.json');
+const adminAuditFile = path.join(dataDir, 'admin-audit.log');
 
 if (vapidPublicKey && vapidPrivateKey) {
   webPush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
@@ -154,6 +155,10 @@ const analyticsLimiter = createRateLimiter({
   windowMs: rateLimitWindowMs,
   maxRequests: parsePositiveIntEnv('RATE_LIMIT_ANALYTICS_MAX_REQUESTS', 30),
 });
+const adminLimiter = createRateLimiter({
+  windowMs: rateLimitWindowMs,
+  maxRequests: parsePositiveIntEnv('RATE_LIMIT_ADMIN_MAX_REQUESTS', 60),
+});
 
 // --- Auth helpers ---
 
@@ -249,6 +254,8 @@ app.use(express.json({ limit: '200kb' }));
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   res.setHeader('Content-Security-Policy', [
@@ -264,6 +271,11 @@ app.use((req, res, next) => {
     "connect-src 'self' https://cdn.jsdelivr.net",
     "worker-src 'self'",
   ].join('; '));
+
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  }
+
   next();
 });
 
@@ -282,6 +294,7 @@ app.use(express.static(__dirname, { index: false, dotfiles: 'deny' }));
 app.use(['/api/push/subscribe', '/api/push/state', '/api/push/unsubscribe'], pushWriteLimiter);
 app.use('/api/user-state', userStateLimiter);
 app.use('/api/feedback', feedbackLimiter);
+app.use(['/api/admin', '/api/analytics/export', '/api/user-state/export-all', '/api/user-state/export-all.xlsx', '/api/push/run-now'], adminLimiter);
 
 async function ensureDataFile() {
   await fs.mkdir(dataDir, { recursive: true });
@@ -298,6 +311,42 @@ async function ensureFeedbackFile() {
     await fs.access(feedbackFile);
   } catch {
     await fs.writeFile(feedbackFile, '[]', 'utf8');
+  }
+}
+
+async function ensureAdminAuditFile() {
+  await fs.mkdir(dataDir, { recursive: true });
+  try {
+    await fs.access(adminAuditFile);
+  } catch {
+    await fs.writeFile(adminAuditFile, '', 'utf8');
+  }
+}
+
+async function appendAdminAudit(entry) {
+  try {
+    await ensureAdminAuditFile();
+    await fs.appendFile(adminAuditFile, `${JSON.stringify(entry)}\n`, 'utf8');
+  } catch {
+    // Keep auth and admin flows non-blocking if audit write fails.
+  }
+}
+
+async function readRecentAdminAuditEntries(maxEntries = 200) {
+  try {
+    await ensureAdminAuditFile();
+    const raw = await fs.readFile(adminAuditFile, 'utf8');
+    const lines = raw.split('\n').filter(Boolean);
+    const selected = lines.slice(Math.max(0, lines.length - maxEntries));
+    return selected.map(line => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        return null;
+      }
+    }).filter(Boolean);
+  } catch {
+    return [];
   }
 }
 
@@ -448,13 +497,38 @@ function isAdminAuthorized(req) {
 
 function requireAdminAuth(req, res, next) {
   if (!adminApiKey) {
+    appendAdminAudit({
+      timestamp: new Date().toISOString(),
+      path: req.path,
+      method: req.method,
+      ip: getClientIp(req),
+      userAgent: (req.get('user-agent') || '').slice(0, 200),
+      outcome: 'admin-key-not-configured',
+    });
     res.status(503).json({ error: 'admin-key-not-configured' });
     return;
   }
   if (!isAdminAuthorized(req)) {
+    appendAdminAudit({
+      timestamp: new Date().toISOString(),
+      path: req.path,
+      method: req.method,
+      ip: getClientIp(req),
+      userAgent: (req.get('user-agent') || '').slice(0, 200),
+      outcome: 'forbidden',
+    });
     res.status(403).json({ error: 'forbidden' });
     return;
   }
+
+  appendAdminAudit({
+    timestamp: new Date().toISOString(),
+    path: req.path,
+    method: req.method,
+    ip: getClientIp(req),
+    userAgent: (req.get('user-agent') || '').slice(0, 200),
+    outcome: 'authorized',
+  });
   next();
 }
 
@@ -787,12 +861,18 @@ app.get('/api/admin/sessions', requireAdminAuth, async (req, res) => {
 
 app.get('/api/admin/feedback', requireAdminAuth, async (req, res) => {
   try {
-    const data = await fs.promises.readFile(feedbackFile, 'utf-8');
+    const data = await fs.readFile(feedbackFile, 'utf-8');
     const feedback = JSON.parse(data || '[]');
     res.json(feedback);
   } catch {
     res.json([]);
   }
+});
+
+app.get('/api/admin/audit', requireAdminAuth, async (req, res) => {
+  const limit = Math.min(500, Math.max(1, Number.parseInt(String(req.query.limit || '200'), 10) || 200));
+  const entries = await readRecentAdminAuditEntries(limit);
+  res.json({ ok: true, count: entries.length, entries });
 });
 
 app.get('/api/push/public-key', (req, res) => {
@@ -1185,7 +1265,7 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-Promise.all([ensureDataFile(), ensureFeedbackFile(), ensureUserStatesCsvFile(), ensureUserStatesXlsxFile()]).then(() => {
+Promise.all([ensureDataFile(), ensureFeedbackFile(), ensureUserStatesCsvFile(), ensureUserStatesXlsxFile(), ensureAdminAuditFile()]).then(() => {
   const server = app.listen(port, () => {
     console.log(`Server running on http://localhost:${port}`);
   });
