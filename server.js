@@ -261,11 +261,16 @@ app.use((req, res, next) => {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: https:",
-    "connect-src 'self'",
+    "connect-src 'self' https://cdn.jsdelivr.net",
     "worker-src 'self'",
   ].join('; '));
   next();
 });
+
+app.get('/favicon.ico', (req, res) => {
+  res.sendFile(path.join(__dirname, 'icon-192.png'));
+});
+
 app.use((req, res, next) => {
   if ((req.method === 'GET' || req.method === 'HEAD') && !isAllowedStaticRequest(req.path)) {
     res.status(404).send('Not found');

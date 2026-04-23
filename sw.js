@@ -9,10 +9,7 @@ const APP_ASSETS = [
   './icon-192.png',
   './icon-512.png',
   './icon-192.svg',
-  './icon-512.svg',
-  'https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js',
-  'https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js',
-  'https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css'
+  './icon-512.svg'
 ];
 
 const NETWORK_FIRST_EXTENSIONS = ['.html', '.css', '.js', '.webmanifest'];
@@ -82,6 +79,11 @@ self.addEventListener('fetch', event => {
     return;
   }
   const requestUrl = new URL(event.request.url);
+
+  // Do not intercept external origins (CDNs, third-party assets).
+  if (requestUrl.origin !== self.location.origin) {
+    return;
+  }
 
   // Always bypass service worker for admin pages and API routes.
   // This avoids stale admin assets and invalid HTML fallback on JSON endpoints.
