@@ -94,6 +94,18 @@ if not exist "manifest.webmanifest" (
 echo ✅ Fichiers essentiels présents
 echo.
 
+REM Pré-check Play Store
+echo 🧪 Vérification readiness Play Store...
+call npm run check:playstore
+if %errorlevel% neq 0 (
+    echo ❌ Le pré-check Play Store a échoué.
+    echo Corrige les points FAIL avant de lancer le build.
+    pause
+    exit /b 1
+)
+echo ✅ Pré-check Play Store validé
+echo.
+
 REM Définir JAVA_HOME
 for /f "tokens=*" %%A in ('where java 2^>nul') do set JAVA_BIN=%%A
 

@@ -15,6 +15,14 @@ Avant de lancer le build, vérifie que tu as :
 
 ### Étape 2️⃣ : Lance le script de build
 
+Avant le build, lance le pré-check Play Store :
+
+```bash
+npm run check:playstore
+```
+
+Ce check valide les fichiers critiques (`twa-manifest.json`, `manifest.webmanifest`, icônes, privacy) et les paramètres TWA.
+
 **Choisis une seule option selon ton système :**
 
 #### 🪟 Sur Windows (recommandé)

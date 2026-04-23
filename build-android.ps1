@@ -104,7 +104,17 @@ if ($javaPath) {
     Write-Host "✅ JAVA_HOME = $env:JAVA_HOME" -ForegroundColor Green
 }
 
-# 7. Lancer la mise à jour Bubblewrap
+# 7. Pré-check Play Store
+Write-Host "`n🧪 Vérification readiness Play Store..." -ForegroundColor Yellow
+npm run check:playstore
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ Le pré-check Play Store a échoué. Corrige les points FAIL avant le build." -ForegroundColor Red
+    Read-Host "`nAppuie sur Enter"
+    exit 1
+}
+Write-Host "✅ Pré-check Play Store validé" -ForegroundColor Green
+
+# 8. Lancer la mise à jour Bubblewrap
 Write-Host "`n🔄 Mise à jour de Bubblewrap..." -ForegroundColor Yellow
 Write-Host "(Cela peut prendre quelques minutes - JDK et SDK Android vont s'installer)`n" -ForegroundColor Gray
 
@@ -116,7 +126,7 @@ if ($updateProcess.ExitCode -ne 0) {
     Write-Host "C'est souvent normal pour la première exécution." -ForegroundColor Gray
 }
 
-# 8. Build l'AAB
+# 9. Build l'AAB
 Write-Host "`n" -ForegroundColor Cyan
 Write-Host "════════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
 Write-Host "🚀 Lancement du build du bundle Android..." -ForegroundColor Cyan
@@ -133,7 +143,7 @@ if ($buildProcess.ExitCode -ne 0) {
     exit 1
 }
 
-# 9. Trouver l'AAB généré
+# 10. Trouver l'AAB généré
 Write-Host "`n" -ForegroundColor Cyan
 Write-Host "════════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
 Write-Host "✨ BUILD RÉUSSI !" -ForegroundColor Green

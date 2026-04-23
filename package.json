@@ -14,6 +14,7 @@
     "check:live": "node scripts/check-live.js",
     "check:security": "node scripts/check-security.js",
     "check:user-security": "node scripts/check-user-security.js",
+    "check:playstore": "node scripts/check-playstore-ready.js",
     "generate:vapid": "node -e \"const webpush=require('web-push');console.log(JSON.stringify(webpush.generateVAPIDKeys(), null, 2));\"",
     "twa:doctor": "bubblewrap doctor",
     "twa:update": "bubblewrap update",

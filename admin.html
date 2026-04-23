@@ -239,6 +239,34 @@
       background: #218838;
     }
 
+    .section-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .section-tools input,
+    .section-tools select {
+      min-width: 220px;
+      padding: 10px;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      background: #fff;
+    }
+
+    .section-tools .tool-spacer {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .section-tools .export-btn {
+      margin-top: 0;
+      padding: 9px 14px;
+    }
+
     @media (max-width: 768px) {
       .admin-header {
         flex-direction: column;
@@ -296,6 +324,11 @@
 
       <div class="data-section">
         <h2>Utilisateurs</h2>
+        <div class="section-tools">
+          <input id="usersSearch" type="search" placeholder="Rechercher par email ou ID" />
+          <div class="tool-spacer"></div>
+          <button id="exportUsersCsvButton" class="export-btn" type="button">📄 Export CSV</button>
+        </div>
         <div id="usersLoading" class="loading">
           <div class="spinner"></div>
           Chargement...
@@ -314,6 +347,11 @@
 
       <div class="data-section">
         <h2>Sessions actives</h2>
+        <div class="section-tools">
+          <input id="sessionsSearch" type="search" placeholder="Filtrer par user ID" />
+          <div class="tool-spacer"></div>
+          <button id="exportSessionsCsvButton" class="export-btn" type="button">📄 Export CSV</button>
+        </div>
         <div id="sessionsLoading" class="loading">
           <div class="spinner"></div>
           Chargement...
@@ -333,6 +371,14 @@
 
       <div class="data-section">
         <h2>Événements analytics (récents)</h2>
+        <div class="section-tools">
+          <input id="eventsSearch" type="search" placeholder="Filtrer par événement, client, meta" />
+          <select id="eventsTypeFilter">
+            <option value="">Tous les événements</option>
+          </select>
+          <div class="tool-spacer"></div>
+          <button id="exportEventsCsvButton" class="export-btn" type="button">📄 Export CSV</button>
+        </div>
         <div id="eventsLoading" class="loading">
           <div class="spinner"></div>
           Chargement...
@@ -353,6 +399,11 @@
 
       <div class="data-section">
         <h2>Feedback utilisateurs</h2>
+        <div class="section-tools">
+          <input id="feedbackSearch" type="search" placeholder="Filtrer par message ou email" />
+          <div class="tool-spacer"></div>
+          <button id="exportFeedbackCsvButton" class="export-btn" type="button">📄 Export CSV</button>
+        </div>
         <div id="feedbackLoading" class="loading">
           <div class="spinner"></div>
           Chargement...
