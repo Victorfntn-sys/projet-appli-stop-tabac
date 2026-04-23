@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stop-smoking-cache-v6';
+const CACHE_NAME = 'stop-smoking-cache-v7';
 const APP_ASSETS = [
   './',
   './index.html',
@@ -38,7 +38,10 @@ async function networkFirst(request) {
     if (cachedResponse) {
       return cachedResponse;
     }
-    return caches.match('./index.html');
+    if (request.mode === 'navigate') {
+      return caches.match('./index.html');
+    }
+    return new Response('Offline', { status: 503, statusText: 'Offline' });
   }
 }
 
@@ -79,6 +82,13 @@ self.addEventListener('fetch', event => {
     return;
   }
   const requestUrl = new URL(event.request.url);
+
+  // Always bypass service worker for admin pages and API routes.
+  // This avoids stale admin assets and invalid HTML fallback on JSON endpoints.
+  if (requestUrl.pathname.startsWith('/api/') || requestUrl.pathname === '/admin.html' || requestUrl.pathname === '/admin.js') {
+    return;
+  }
+
   event.respondWith(
     isNetworkFirstRequest(requestUrl, event.request.mode)
       ? networkFirst(event.request)
