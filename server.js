@@ -16,6 +16,7 @@ const port = Number(process.env.PORT) || 3000;
 const publicStaticFiles = new Set([
   '/index.html',
   '/admin.html',
+  '/admin.js',
   '/privacy.html',
   '/styles.css',
   '/script.js',
