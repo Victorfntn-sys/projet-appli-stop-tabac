@@ -54,6 +54,7 @@ const sessionsFile = path.join(dataDir, 'sessions.json');
 const accountStatesFile = path.join(dataDir, 'account-states.json');
 const analyticsFile = path.join(dataDir, 'analytics.json');
 const adminAuditFile = path.join(dataDir, 'admin-audit.log');
+const SAVINGS_NOTIFICATION_PACK_STEP = 3;
 
 if (vapidPublicKey && vapidPrivateKey) {
   webPush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
@@ -632,16 +633,53 @@ function getTodayIso() {
   return today.toISOString().split('T')[0];
 }
 
-function getPauseMessage(dateIso) {
-  const messages = [
-    'Chaque jour sans cigarette est une victoire. Tu peux reprendre aujourd\'hui.',
-    'Respire un grand coup. Ta pause peut devenir un nouveau depart.',
-    'Une envie passe. Ton objectif, lui, peut rester.',
-    'Reprendre aujourd\'hui, c\'est deja avancer.',
-    'Ton corps apprecie chaque cigarette evitee. Continue.'
-  ];
+function getNotificationMode(notificationPrefs = {}) {
+  return notificationPrefs.mode === 'save' ? 'save' : 'progress';
+}
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value) || 0);
+}
+
+function getPauseMessage(dateIso, mode) {
+  const messages = mode === 'save'
+    ? [
+      'Cette semaine, garde le cap et mets l\'argent du tabac de cote pour toi.',
+      'Une envie passee, c\'est une petite somme gardee. Reprends doucement mais surement.',
+      'Ton objectif compte plus qu\'un paquet. Garde cette economie pour quelque chose d\'utile.',
+      'Repartir aujourd\'hui, c\'est recommencer a remplir ta cagnotte.',
+      'Chaque cigarette evitee peut devenir une reserve. Continue sans te surcharger.'
+    ]
+    : [
+      'Chaque jour sans cigarette est une victoire. Tu peux reprendre aujourd\'hui.',
+      'Respire un grand coup. Ta pause peut devenir un nouveau depart.',
+      'Une envie passe. Ton objectif, lui, peut rester.',
+      'Reprendre aujourd\'hui, c\'est deja avancer.',
+      'Ton corps apprecie chaque cigarette evitee. Continue.'
+    ];
   const hash = Array.from(dateIso).reduce((sum, char) => sum + char.charCodeAt(0), 0);
   return messages[hash % messages.length];
+}
+
+function getSavingsNotificationCheckpoint(packsSaved) {
+  return Math.max(0, Math.floor((Number(packsSaved) || 0) / SAVINGS_NOTIFICATION_PACK_STEP) * SAVINGS_NOTIFICATION_PACK_STEP);
+}
+
+function buildSavingsPushMessage(userState, newlyUnlockedPacks) {
+  const pricePerPack = Number(userState?.pricePerPack) || 0;
+  const amountToSave = formatCurrency(pricePerPack * newlyUnlockedPacks);
+  const goalName = String(userState?.goalName || '').trim();
+  const goalSuffix = goalName ? ` pour ${goalName}` : '';
+  const mode = getNotificationMode(userState?.notificationPrefs || {});
+  if (mode === 'save') {
+    return `${newlyUnlockedPacks} paquet${newlyUnlockedPacks > 1 ? 's' : ''} economises. Mets de cote ${amountToSave}${goalSuffix} cette semaine.`;
+  }
+  return `${newlyUnlockedPacks} paquet${newlyUnlockedPacks > 1 ? 's' : ''} economises depuis le dernier palier. Tu continues a avancer${goalSuffix}.`;
 }
 
 function parseTimeToMinutes(value, fallbackMinutes) {
@@ -769,11 +807,12 @@ async function sendScheduledNotifications() {
     const userState = record.userState || {};
 
     const canSendNow = canSendPushForUser(userState, now);
+    const notificationMode = getNotificationMode(userState?.notificationPrefs || {});
 
     if (canSendNow && userState.isPaused && record.lastPausePushAt !== todayIso) {
       const result = await sendPushNotification(record.subscription, {
         title: 'Calculateur d\'economies',
-        body: getPauseMessage(todayIso),
+        body: getPauseMessage(todayIso, notificationMode),
         tag: `pause-${todayIso}`,
       });
       if (result.ok) {
@@ -784,15 +823,17 @@ async function sendScheduledNotifications() {
     }
 
     const savedPacks = getSavedPacks(userState);
-    if (keepRecord && canSendNow && savedPacks > (record.lastNotifiedPackCount || 0)) {
-      const newPacks = savedPacks - (record.lastNotifiedPackCount || 0);
+    const previousCheckpoint = getSavingsNotificationCheckpoint(record.lastNotifiedPackCount || 0);
+    const nextCheckpoint = getSavingsNotificationCheckpoint(savedPacks);
+    if (keepRecord && canSendNow && nextCheckpoint > previousCheckpoint) {
+      const newPacks = nextCheckpoint - previousCheckpoint;
       const result = await sendPushNotification(record.subscription, {
         title: 'Calculateur d\'economies',
-        body: `Bravo ! ${newPacks} paquet${newPacks > 1 ? 's' : ''} economise${newPacks > 1 ? 's' : ''} depuis le dernier rappel.`,
-        tag: `packs-${savedPacks}`,
+        body: buildSavingsPushMessage(userState, newPacks),
+        tag: `packs-${nextCheckpoint}`,
       });
       if (result.ok) {
-        record.lastNotifiedPackCount = savedPacks;
+        record.lastNotifiedPackCount = nextCheckpoint;
       } else if (result.reason === 404 || result.reason === 410) {
         keepRecord = false;
       }

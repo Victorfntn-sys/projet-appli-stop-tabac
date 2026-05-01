@@ -13,7 +13,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Nunito+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" integrity="sha384-JUh163oCRItcbPme8pYnROHQMC6fNKTBWtRG3I3I0erJkzNgL7uxKlNwcrcFKeqF" crossorigin="anonymous"></script>
-  <style>
+  <style media="not all">
 :root {
   --bg: #f2fbf8;
   --surface: #ffffff;
@@ -719,14 +719,16 @@ strong {
       <p>Suivez votre arrêt du tabac et découvrez combien vous pouvez économiser.</p>
       <div class="header-actions">
         <button id="installAppButton" class="install-button" type="button" hidden>Installer l'application</button>
-        <button id="accountButton" class="ghost-button account-button" type="button">👤 Connexion</button>
       </div>
     </header>
 
     <section class="card input-card">
       <div class="input-card-head">
         <h2>Vos informations</h2>
-        <button id="openBadgesModalButton" type="button" class="ghost-button badges-open-button">🏅 Voir mes badges</button>
+        <div class="input-card-actions">
+          <button id="openBadgesModalButton" type="button" class="ghost-button badges-open-button">🏅 Voir mes badges</button>
+          <button id="accountButton" class="ghost-button account-button" type="button">👤 Connexion</button>
+        </div>
       </div>
       <label for="cigarettesPerDay">Cigarettes par jour</label>
       <input id="cigarettesPerDay" type="number" min="0" value="10" />
@@ -771,11 +773,11 @@ strong {
             <select id="notificationFrequency">
               <option value="daily">Tous les jours</option>
               <option value="weekdays">Jours ouvrés</option>
-              <option value="weekly">Une fois par semaine</option>
+              <option value="weekly" selected>Une fois par semaine</option>
             </select>
           </label>
           <label for="notificationReminderTime">Heure préférée
-            <input id="notificationReminderTime" type="time" value="09:00" />
+            <input id="notificationReminderTime" type="time" value="18:30" />
           </label>
           <label for="notificationQuietStart">Ne pas déranger - début
             <input id="notificationQuietStart" type="time" value="21:30" />
@@ -789,13 +791,19 @@ strong {
               <option value="direct">Direct</option>
             </select>
           </label>
+          <label for="notificationMode">Mode de rappel
+            <select id="notificationMode">
+              <option value="progress">Progression</option>
+              <option value="save" selected>Mettre de côté</option>
+            </select>
+          </label>
           <label for="notificationWeeklyDay">Jour hebdo
             <select id="notificationWeeklyDay">
               <option value="1">Lundi</option>
               <option value="2">Mardi</option>
               <option value="3">Mercredi</option>
               <option value="4">Jeudi</option>
-              <option value="5">Vendredi</option>
+              <option value="5" selected>Vendredi</option>
               <option value="6">Samedi</option>
               <option value="0">Dimanche</option>
             </select>
@@ -951,6 +959,19 @@ strong {
       </ul>
     </section>
   </main>
+
+  <div id="firstLaunchModal" class="first-launch-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Bienvenue">
+    <div class="first-launch-modal-overlay"></div>
+    <div class="first-launch-modal-panel" role="document">
+      <p class="first-launch-kicker">Première ouverture</p>
+      <h3 class="first-launch-title">Bienvenue dans votre suivi sans tabac</h3>
+      <p class="first-launch-text">Choisissez votre mode de démarrage. Vous pourrez créer un compte plus tard à tout moment.</p>
+      <div class="first-launch-actions">
+        <button id="firstLaunchCreateAccountBtn" type="button" class="secondary-button">Créer un compte (synchronisation)</button>
+        <button id="firstLaunchGuestBtn" type="button" class="ghost-button">Continuer en invité</button>
+      </div>
+    </div>
+  </div>
 
   <div id="onboardingModal" class="onboarding-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Découverte de l'application">
     <div class="onboarding-panel" role="document">

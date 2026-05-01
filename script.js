@@ -18,6 +18,7 @@ const STORAGE_CRAVING_SESSION_COUNT = 'stop-smoking-craving-session-count';
 const STORAGE_NOTIFICATION_PREFS = 'stop-smoking-notification-preferences';
 const STORAGE_ANALYTICS_EVENTS = 'stop-smoking-analytics-events';
 const STORAGE_AUTH_TOKEN = 'stop-smoking-auth-token';
+const STORAGE_ENTRY_CHOICE = 'stop-smoking-entry-choice';
 const cigarettesPerDay = document.getElementById('cigarettesPerDay');
 const pricePerPack = document.getElementById('pricePerPack');
 const cigarettesPerPack = document.getElementById('cigarettesPerPack');
@@ -55,6 +56,7 @@ const notificationReminderTime = document.getElementById('notificationReminderTi
 const notificationQuietStart = document.getElementById('notificationQuietStart');
 const notificationQuietEnd = document.getElementById('notificationQuietEnd');
 const notificationTone = document.getElementById('notificationTone');
+const notificationMode = document.getElementById('notificationMode');
 const notificationWeeklyDay = document.getElementById('notificationWeeklyDay');
 const resultCard = document.querySelector('.result-card');
 const savingsProjection = document.getElementById('savingsProjection');
@@ -80,6 +82,9 @@ const onboardingCigarettesPerDay = document.getElementById('onboardingCigarettes
 const onboardingPricePerPack = document.getElementById('onboardingPricePerPack');
 const onboardingQuitDate = document.getElementById('onboardingQuitDate');
 const onboardingSteps = Array.from(document.querySelectorAll('.onboarding-step'));
+const firstLaunchModal = document.getElementById('firstLaunchModal');
+const firstLaunchCreateAccountBtn = document.getElementById('firstLaunchCreateAccountBtn');
+const firstLaunchGuestBtn = document.getElementById('firstLaunchGuestBtn');
 const startCravingButton = document.getElementById('startCravingButton');
 const cravingDoneButton = document.getElementById('cravingDoneButton');
 const cravingTimer = document.getElementById('cravingTimer');
@@ -104,6 +109,8 @@ let launchAdCountdownIntervalId = null;
 let onboardingStepIndex = 0;
 let cravingIntervalId = null;
 let cravingSecondsLeft = 180;
+let pendingStartupFlowAfterAccountModal = false;
+let hasLaunchedStartupFlow = false;
 const PUSH_STATE_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 const SERVICE_WORKER_UPDATE_CHECK_INTERVAL_MS = 60 * 1000;
 const LAUNCH_AD_COOLDOWN_MS = 6 * 60 * 60 * 1000;
@@ -111,19 +118,29 @@ const LAUNCH_AD_SHOW_EVERY_N_OPENS = 3;
 const LAUNCH_AD_AUTO_CLOSE_SECONDS = 5;
 const CRAVING_SESSION_DURATION_SECONDS = 180;
 const MAX_ANALYTICS_EVENTS = 200;
+const SAVINGS_NOTIFICATION_PACK_STEP = 3;
 let trackingState = {
   isPaused: false,
   pauseStartedAt: null,
   pausedDaysTotal: 0,
 };
 
-const pauseEncouragementMessages = [
-  'Chaque jour sans cigarette est une victoire. Tu en es capable.',
-  'Respire, garde le cap : ton corps te remercie deja.',
-  'Une envie passe en quelques minutes. Tiens bon, tu avances.',
-  'Rappelle-toi pourquoi tu as commence. Aujourd\'hui compte vraiment.',
-  'Tu construis une meilleure version de toi, un jour apres l\'autre.',
-];
+const pauseEncouragementMessagesByMode = {
+  progress: [
+    'Chaque jour sans cigarette est une victoire. Tu en es capable.',
+    'Respire, garde le cap : ton corps te remercie deja.',
+    'Une envie passe en quelques minutes. Tiens bon, tu avances.',
+    'Rappelle-toi pourquoi tu as commence. Aujourd\'hui compte vraiment.',
+    'Tu construis une meilleure version de toi, un jour apres l\'autre.',
+  ],
+  save: [
+    'Un rappel suffit : garde le cap et mets l\'equivalent de tes cigarettes dans une enveloppe cette semaine.',
+    'Chaque envie evitee peut devenir une petite somme mise de cote. Continue doucement, mais regulierement.',
+    'Ton progres vaut plus qu\'un craquage. Garde ce montant pour ton objectif plutot que pour un paquet.',
+    'Fais simple aujourd\'hui : pas de cigarette, et l\'argent economise reste pour toi.',
+    'Une semaine apres l\'autre, ta reserve grimpe. Tiens bon et transforme l\'envie en economie.',
+  ],
+};
 
 const cravingTips = [
   'Bois un verre d\'eau lentement puis respire 4 fois profondement.',
@@ -134,6 +151,16 @@ const cravingTips = [
 ];
 
 const defaultNotificationPrefs = {
+  frequency: 'weekly',
+  reminderTime: '18:30',
+  quietStart: '21:30',
+  quietEnd: '08:00',
+  tone: 'supportive',
+  mode: 'save',
+  weeklyDay: '5',
+};
+
+const legacyDefaultNotificationPrefs = {
   frequency: 'daily',
   reminderTime: '09:00',
   quietStart: '21:30',
@@ -339,14 +366,25 @@ function getStoredNotificationPrefs() {
       return { ...defaultNotificationPrefs };
     }
     const parsed = JSON.parse(raw);
-    return {
+    const normalized = {
       frequency: parsed.frequency || defaultNotificationPrefs.frequency,
       reminderTime: parsed.reminderTime || defaultNotificationPrefs.reminderTime,
       quietStart: parsed.quietStart || defaultNotificationPrefs.quietStart,
       quietEnd: parsed.quietEnd || defaultNotificationPrefs.quietEnd,
       tone: parsed.tone || defaultNotificationPrefs.tone,
+      mode: parsed.mode || defaultNotificationPrefs.mode,
       weeklyDay: String(parsed.weeklyDay ?? defaultNotificationPrefs.weeklyDay),
     };
+
+    const isLegacyDefault = Object.entries(legacyDefaultNotificationPrefs)
+      .every(([key, value]) => String(normalized[key]) === String(value));
+
+    if (isLegacyDefault) {
+      saveNotificationPrefs(defaultNotificationPrefs);
+      return { ...defaultNotificationPrefs };
+    }
+
+    return normalized;
   } catch {
     return { ...defaultNotificationPrefs };
   }
@@ -424,6 +462,7 @@ function getCurrentNotificationPrefs() {
     quietStart: notificationQuietStart?.value || defaultNotificationPrefs.quietStart,
     quietEnd: notificationQuietEnd?.value || defaultNotificationPrefs.quietEnd,
     tone: notificationTone?.value || defaultNotificationPrefs.tone,
+    mode: notificationMode?.value || defaultNotificationPrefs.mode,
     weeklyDay: notificationWeeklyDay?.value || defaultNotificationPrefs.weeklyDay,
   };
 }
@@ -444,6 +483,9 @@ function applyNotificationPrefsToInputs() {
   }
   if (notificationTone) {
     notificationTone.value = prefs.tone;
+  }
+  if (notificationMode) {
+    notificationMode.value = prefs.mode;
   }
   if (notificationWeeklyDay) {
     notificationWeeklyDay.value = prefs.weeklyDay;
@@ -549,6 +591,100 @@ function shouldShowOnboarding() {
   }
 
   return true;
+}
+
+function getStoredEntryChoice() {
+  try {
+    return localStorage.getItem(STORAGE_ENTRY_CHOICE) || '';
+  } catch {
+    return '';
+  }
+}
+
+function saveEntryChoice(value) {
+  try {
+    localStorage.setItem(STORAGE_ENTRY_CHOICE, value);
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function shouldShowFirstLaunchChoice() {
+  if (!firstLaunchModal || getStoredEntryChoice()) {
+    return false;
+  }
+
+  const hasExistingData = Boolean(
+    getStoredQuitDate()
+    || getStoredFieldValue(STORAGE_CIGARETTES_PER_DAY)
+    || getStoredFieldValue(STORAGE_PRICE_PER_PACK)
+    || getStoredFieldValue(STORAGE_CIGARETTES_PER_PACK)
+    || getStoredFieldValue(STORAGE_GOAL_NAME)
+    || getStoredFieldValue(STORAGE_GOAL_AMOUNT)
+    || getStoredAuthToken()
+  );
+
+  if (hasExistingData) {
+    saveEntryChoice('existing-user');
+    return false;
+  }
+
+  return true;
+}
+
+function openFirstLaunchChoiceModal() {
+  if (!firstLaunchModal) {
+    return;
+  }
+  firstLaunchModal.classList.add('open');
+  firstLaunchModal.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeFirstLaunchChoiceModal() {
+  if (!firstLaunchModal) {
+    return;
+  }
+  firstLaunchModal.classList.remove('open');
+  firstLaunchModal.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+}
+
+function launchStartupFlow() {
+  if (hasLaunchedStartupFlow) {
+    return;
+  }
+  hasLaunchedStartupFlow = true;
+
+  if (shouldShowLaunchAdOnStartup()) {
+    if (!shouldShowOnboarding()) {
+      window.setTimeout(() => {
+        openLaunchAd();
+      }, 220);
+    }
+  }
+
+  if (shouldShowOnboarding()) {
+    window.setTimeout(() => {
+      openOnboarding();
+    }, 180);
+  }
+}
+
+function handleFirstLaunchCreateAccount() {
+  saveEntryChoice('account');
+  pendingStartupFlowAfterAccountModal = true;
+  closeFirstLaunchChoiceModal();
+  openAccountModal();
+  showAccountTab('register');
+  trackEvent('entry_choice_account');
+}
+
+function handleFirstLaunchGuest() {
+  saveEntryChoice('guest');
+  closeFirstLaunchChoiceModal();
+  launchStartupFlow();
+  trackEvent('entry_choice_guest');
 }
 
 function renderOnboardingStep() {
@@ -812,8 +948,24 @@ function shouldShowLaunchAdOnStartup() {
 }
 
 function getPauseEncouragementMessage(dateIso) {
+  const mode = getCurrentNotificationPrefs().mode === 'save' ? 'save' : 'progress';
+  const pauseEncouragementMessages = pauseEncouragementMessagesByMode[mode] || pauseEncouragementMessagesByMode.progress;
   const hash = Array.from(dateIso).reduce((sum, char) => sum + char.charCodeAt(0), 0);
   return pauseEncouragementMessages[hash % pauseEncouragementMessages.length];
+}
+
+function getSavingsNotificationCheckpoint(packsSaved) {
+  return Math.max(0, Math.floor((Number(packsSaved) || 0) / SAVINGS_NOTIFICATION_PACK_STEP) * SAVINGS_NOTIFICATION_PACK_STEP);
+}
+
+function buildSavingsNotificationMessage(newlyUnlockedPacks, amountToSave, goalName, mode) {
+  const formattedAmount = formatCurrency(amountToSave);
+  const packLabel = `${newlyUnlockedPacks} paquet${newlyUnlockedPacks > 1 ? 's' : ''}`;
+  const goalSuffix = goalName ? ` pour ${goalName}` : '';
+  if (mode === 'save') {
+    return `Bon cap : ${packLabel} economises. Mets de cote ${formattedAmount}${goalSuffix} cette semaine.`;
+  }
+  return `Bravo : ${packLabel} economises depuis le dernier palier. Tu continues a avancer${goalSuffix}.`;
 }
 
 function setFeedbackStatus(message, type = '') {
@@ -1335,16 +1487,18 @@ function calculateSavings() {
   });
 
   const packsSaved = cigsPerPack > 0 ? Math.floor(savedCigarettes / cigsPerPack) : 0;
-  const newPacks = packsSaved - lastPackCount;
-  if (newPacks > 0) {
+  const previousCheckpoint = getSavingsNotificationCheckpoint(lastPackCount);
+  const nextCheckpoint = getSavingsNotificationCheckpoint(packsSaved);
+  if (nextCheckpoint > previousCheckpoint) {
     if (!pushSubscriptionEndpoint) {
-      const amountToSave = price * newPacks;
-      sendNotification(`Bravo ! Vous avez économisé ${newPacks} paquet${newPacks > 1 ? 's' : ''} de plus. Pensez à mettre de côté ${formatCurrency(amountToSave)}.`);
+      const newlyUnlockedPacks = nextCheckpoint - previousCheckpoint;
+      const amountToSave = price * newlyUnlockedPacks;
+      sendNotification(buildSavingsNotificationMessage(newlyUnlockedPacks, amountToSave, goalNameInput.value.trim(), getCurrentNotificationPrefs().mode));
     }
-    lastPackCount = packsSaved;
+    lastPackCount = nextCheckpoint;
     saveLastPackCount(lastPackCount);
   } else if (packsSaved < lastPackCount) {
-    lastPackCount = packsSaved;
+    lastPackCount = getSavingsNotificationCheckpoint(packsSaved);
     saveLastPackCount(lastPackCount);
   }
 }
@@ -1399,9 +1553,10 @@ function updateNotificationStatus(permission) {
     : prefs.frequency === 'weekly'
       ? `hebdo (${['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'][Number(prefs.weeklyDay) || 0]})`
       : 'quotidienne';
+  const modeLabel = prefs.mode === 'save' ? 'mise de cote' : 'progression';
 
   if (permission === 'granted') {
-    setNotificationMessage(`Notifications actives (${frequencyLabel}, rappel ${prefs.reminderTime}, silence ${prefs.quietStart}-${prefs.quietEnd}).`);
+    setNotificationMessage(`Notifications actives (${frequencyLabel}, mode ${modeLabel}, rappel ${prefs.reminderTime}, silence ${prefs.quietStart}-${prefs.quietEnd}).`);
     notificationToggle.checked = true;
     notificationToggle.disabled = false;
   } else if (permission === 'denied') {
@@ -1611,6 +1766,7 @@ notificationReminderTime?.addEventListener('change', persistNotificationPrefsFro
 notificationQuietStart?.addEventListener('change', persistNotificationPrefsFromInputs);
 notificationQuietEnd?.addEventListener('change', persistNotificationPrefsFromInputs);
 notificationTone?.addEventListener('change', persistNotificationPrefsFromInputs);
+notificationMode?.addEventListener('change', persistNotificationPrefsFromInputs);
 notificationWeeklyDay?.addEventListener('change', persistNotificationPrefsFromInputs);
 
 // -----------------------------------------------------------------------
@@ -1631,11 +1787,15 @@ function updateAccountUI() {
   const btn = document.getElementById('accountButton');
   if (!btn) return;
   if (currentUser) {
-    btn.textContent = '👤 Mon compte';
+    btn.classList.add('is-authenticated');
+    btn.innerHTML = '<span class="account-avatar" aria-hidden="true"></span><span>Mon compte</span>';
     btn.title = currentUser.email;
+    btn.setAttribute('aria-label', `Mon compte (connecte: ${currentUser.email})`);
   } else {
-    btn.textContent = '👤 Connexion';
+    btn.classList.remove('is-authenticated');
+    btn.innerHTML = '<span class="account-avatar" aria-hidden="true"></span><span>Connexion</span>';
     btn.title = '';
+    btn.setAttribute('aria-label', 'Connexion');
   }
 }
 
@@ -1663,6 +1823,13 @@ function closeAccountModal() {
   if (!modal) return;
   modal.classList.remove('open');
   modal.setAttribute('aria-hidden', 'true');
+
+  if (pendingStartupFlowAfterAccountModal) {
+    pendingStartupFlowAfterAccountModal = false;
+    window.setTimeout(() => {
+      launchStartupFlow();
+    }, 140);
+  }
 }
 
 function showAccountTab(tab) {
@@ -2000,6 +2167,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   updateAppLoading(54, 'Calcul de votre progression...');
   refreshTrackingUI(today);
   calculateSavings();
+  updateAccountUI();
   initAccount().catch(() => undefined);
   updateNotificationStatus(Notification.permission);
   updateAppLoading(74, 'Configuration des notifications...');
@@ -2124,6 +2292,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('accountRegisterForm')?.addEventListener('submit', handleAccountRegister);
   document.getElementById('accountLogoutButton')?.addEventListener('click', handleAccountLogout);
   document.getElementById('exportPdfButton')?.addEventListener('click', exportProgressionPdf);
+  firstLaunchCreateAccountBtn?.addEventListener('click', handleFirstLaunchCreateAccount);
+  firstLaunchGuestBtn?.addEventListener('click', handleFirstLaunchGuest);
 
   // Initialize Flatpickr for date input
   flatpickr(quitDate, {
@@ -2147,18 +2317,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
   await hideAppLoadingScreen();
 
-  if (shouldShowLaunchAdOnStartup()) {
-    if (!shouldShowOnboarding()) {
-      window.setTimeout(() => {
-        openLaunchAd();
-      }, 220);
-    }
-  }
-
-  if (shouldShowOnboarding()) {
-    window.setTimeout(() => {
-      openOnboarding();
-    }, 180);
+  if (shouldShowFirstLaunchChoice()) {
+    openFirstLaunchChoiceModal();
+  } else {
+    launchStartupFlow();
   }
 
 });
