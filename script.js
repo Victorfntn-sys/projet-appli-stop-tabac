@@ -2297,7 +2297,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // Initialize Flatpickr for date input
   flatpickr(quitDate, {
-    locale: 'fr',
+    locale: (typeof flatpickr !== 'undefined' && flatpickr.l10ns && flatpickr.l10ns.fr) ? flatpickr.l10ns.fr : 'fr',
     dateFormat: 'Y-m-d',
     altInput: true,
     altFormat: 'd/m/Y',
