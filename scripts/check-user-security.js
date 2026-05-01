@@ -11,8 +11,9 @@ const http = require('http');
 const { spawn } = require('child_process');
 const path = require('path');
 
-const PORT = 3333;
-const baseUrl = `http://localhost:${PORT}`;
+const REQUESTED_PORT = 3333;
+let runtimePort = REQUESTED_PORT;
+let baseUrl = `http://localhost:${runtimePort}`;
 
 let testCount = 0;
 let passCount = 0;
@@ -65,12 +66,19 @@ async function main() {
   log('=======================\n');
 
   // Start server
-  await new Promise((res) => {
+  await new Promise((res, rej) => {
+    let settled = false;
+    const finish = (fn) => {
+      if (settled) return;
+      settled = true;
+      fn();
+    };
+
     testServer = spawn('node', ['server.js'], {
       cwd: path.join(__dirname, '..'),
       env: {
         ...process.env,
-        PORT: PORT,
+        PORT: String(REQUESTED_PORT),
         ADMIN_API_KEY: 'super-secret-admin-key-12345',
         SESSION_SECRET: 'test-session-secret',
         VAPID_PUBLIC_KEY: '',
@@ -88,12 +96,24 @@ async function main() {
 
     testServer.stdout.on('data', (data) => {
       const msg = data.toString().trim();
-      if (msg.includes('listening') || msg.includes('running')) {
+      if (msg) {
         console.log(`[server]`, msg);
+      }
+      const match = /Server running on http:\/\/localhost:(\d+)/i.exec(msg);
+      if (match) {
+        runtimePort = Number(match[1]);
+        baseUrl = `http://localhost:${runtimePort}`;
+        finish(() => res());
       }
     });
 
-    setTimeout(() => res(), 2500);
+    testServer.on('exit', (code) => {
+      finish(() => rej(new Error(`server exited before ready (code ${code})`)));
+    });
+
+    setTimeout(() => {
+      finish(() => rej(new Error('timeout waiting for server startup')));
+    }, 8000);
   });
 
   log(`Server started on ${baseUrl}\n`);

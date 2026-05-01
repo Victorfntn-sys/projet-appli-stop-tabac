@@ -2851,7 +2851,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     updateAccountSyncStatusLabel();
     trackEvent('account_state_restored');
   });
-  document.getElementById('exportPdfButton')?.addEventListener('click', exportProgressionPdf);
   firstLaunchCreateAccountBtn?.addEventListener('click', handleFirstLaunchCreateAccount);
   firstLaunchGuestBtn?.addEventListener('click', handleFirstLaunchGuest);
 
