@@ -637,6 +637,18 @@ function getNotificationMode(notificationPrefs = {}) {
   return notificationPrefs.mode === 'save' ? 'save' : 'progress';
 }
 
+function getReminderDispatchKey(localDate, frequency) {
+  if (frequency !== 'weekly') {
+    return localDate.toISOString().split('T')[0];
+  }
+  const weekDate = new Date(Date.UTC(localDate.getFullYear(), localDate.getMonth(), localDate.getDate()));
+  const dayNum = weekDate.getUTCDay() || 7;
+  weekDate.setUTCDate(weekDate.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(weekDate.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((weekDate - yearStart) / 86400000) + 1) / 7);
+  return `${weekDate.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
 function formatCurrency(value) {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
@@ -670,16 +682,24 @@ function getSavingsNotificationCheckpoint(packsSaved) {
   return Math.max(0, Math.floor((Number(packsSaved) || 0) / SAVINGS_NOTIFICATION_PACK_STEP) * SAVINGS_NOTIFICATION_PACK_STEP);
 }
 
+function getEstimatedMonthlyPotential(userState) {
+  const cigsPerDay = Number(userState?.cigsPerDay) || 0;
+  const cigsPerPack = Math.max(1, Number(userState?.cigsPerPack) || 1);
+  const pricePerPack = Number(userState?.pricePerPack) || 0;
+  return (cigsPerDay / cigsPerPack) * pricePerPack * 30;
+}
+
 function buildSavingsPushMessage(userState, newlyUnlockedPacks) {
   const pricePerPack = Number(userState?.pricePerPack) || 0;
   const amountToSave = formatCurrency(pricePerPack * newlyUnlockedPacks);
   const goalName = String(userState?.goalName || '').trim();
   const goalSuffix = goalName ? ` pour ${goalName}` : '';
   const mode = getNotificationMode(userState?.notificationPrefs || {});
+  const monthlyPotential = formatCurrency(getEstimatedMonthlyPotential(userState));
   if (mode === 'save') {
-    return `${newlyUnlockedPacks} paquet${newlyUnlockedPacks > 1 ? 's' : ''} economises. Mets de cote ${amountToSave}${goalSuffix} cette semaine.`;
+    return `Recap hebdo: ${newlyUnlockedPacks} paquet${newlyUnlockedPacks > 1 ? 's' : ''} economises. Mets de cote ${amountToSave}${goalSuffix}. Potentiel mensuel: ${monthlyPotential}.`;
   }
-  return `${newlyUnlockedPacks} paquet${newlyUnlockedPacks > 1 ? 's' : ''} economises depuis le dernier palier. Tu continues a avancer${goalSuffix}.`;
+  return `Recap hebdo: ${newlyUnlockedPacks} paquet${newlyUnlockedPacks > 1 ? 's' : ''} economises depuis le dernier palier. Tu continues a avancer${goalSuffix}.`;
 }
 
 function parseTimeToMinutes(value, fallbackMinutes) {
@@ -779,7 +799,10 @@ function getSavedPacks(userState) {
       pausedDaysCurrent = Math.max(0, Math.floor((today - pauseStartedAt) / 86400000));
     }
   }
-  const activeDays = Math.max(0, elapsedDays - pausedDaysTotal - pausedDaysCurrent);
+  const relapseDays = Array.isArray(userState.relapseEvents)
+    ? userState.relapseEvents.filter(value => /^\d{4}-\d{2}-\d{2}$/.test(String(value))).length
+    : 0;
+  const activeDays = Math.max(0, elapsedDays - pausedDaysTotal - pausedDaysCurrent - relapseDays);
   const savedCigarettes = activeDays * cigsPerDay;
   return Math.floor(savedCigarettes / cigsPerPack);
 }
@@ -798,25 +821,28 @@ async function sendPushNotification(subscription, payload) {
 
 async function sendScheduledNotifications() {
   const subscriptions = await readSubscriptions();
-  const todayIso = getTodayIso();
   const now = new Date();
   const nextSubscriptions = [];
 
   for (const record of subscriptions) {
     let keepRecord = true;
     const userState = record.userState || {};
+    const notificationPrefs = userState?.notificationPrefs || {};
+    const frequency = notificationPrefs.frequency || 'daily';
+    const localDate = getDateInUserTimezone(now, userState?.timezoneOffsetMinutes);
+    const reminderDispatchKey = getReminderDispatchKey(localDate, frequency);
 
     const canSendNow = canSendPushForUser(userState, now);
     const notificationMode = getNotificationMode(userState?.notificationPrefs || {});
 
-    if (canSendNow && userState.isPaused && record.lastPausePushAt !== todayIso) {
+    if (canSendNow && userState.isPaused && record.lastPausePushAt !== reminderDispatchKey) {
       const result = await sendPushNotification(record.subscription, {
         title: 'Calculateur d\'economies',
-        body: getPauseMessage(todayIso, notificationMode),
-        tag: `pause-${todayIso}`,
+        body: getPauseMessage(reminderDispatchKey, notificationMode),
+        tag: `pause-${reminderDispatchKey}`,
       });
       if (result.ok) {
-        record.lastPausePushAt = todayIso;
+        record.lastPausePushAt = reminderDispatchKey;
       } else if (result.reason === 404 || result.reason === 410) {
         keepRecord = false;
       }
@@ -1242,6 +1268,46 @@ app.get('/api/account/state', requireUserAuth, async (req, res) => {
 app.put('/api/account/state', requireUserAuth, async (req, res) => {
   try {
     const body = req.body || {};
+    const relapseEvents = Array.isArray(body.relapseEvents)
+      ? Array.from(new Set(body.relapseEvents
+        .map(value => String(value || '').trim())
+        .filter(value => /^\d{4}-\d{2}-\d{2}$/.test(value))))
+      : [];
+
+    const savingsPot = (typeof body.savingsPot === 'object' && body.savingsPot !== null)
+      ? {
+        total: Number(body.savingsPot.total) || 0,
+        deposits: Array.isArray(body.savingsPot.deposits)
+          ? body.savingsPot.deposits.slice(-200).map(entry => ({
+            amount: Number(entry?.amount) || 0,
+            at: typeof entry?.at === 'string' ? entry.at.slice(0, 40) : '',
+          }))
+          : [],
+      }
+      : { total: 0, deposits: [] };
+
+    const cravingPlan = Array.isArray(body.cravingPlan)
+      ? body.cravingPlan.slice(0, 3).map(value => String(value || '').trim().slice(0, 120))
+      : [];
+
+    const wellbeingLog = Array.isArray(body.wellbeingLog)
+      ? body.wellbeingLog.slice(-52).map(entry => ({
+        weekKey: typeof entry?.weekKey === 'string' ? entry.weekKey.slice(0, 12) : '',
+        at: typeof entry?.at === 'string' ? entry.at.slice(0, 40) : '',
+        energy: Math.max(0, Math.min(10, Number(entry?.energy) || 0)),
+        breath: Math.max(0, Math.min(10, Number(entry?.breath) || 0)),
+        sleep: Math.max(0, Math.min(10, Number(entry?.sleep) || 0)),
+      }))
+      : [];
+
+    const metricsHistory = Array.isArray(body.metricsHistory)
+      ? body.metricsHistory.slice(-120).map(entry => ({
+        date: typeof entry?.date === 'string' ? entry.date.slice(0, 10) : '',
+        savedMoney: Number(entry?.savedMoney) || 0,
+        savedCigarettes: Number(entry?.savedCigarettes) || 0,
+      }))
+      : [];
+
     const safeState = {
       quitDate: typeof body.quitDate === 'string' ? body.quitDate.trim().slice(0, 40) : '',
       cigsPerDay: Number(body.cigsPerDay) || 0,
@@ -1255,7 +1321,12 @@ app.put('/api/account/state', requireUserAuth, async (req, res) => {
         pausedDaysTotal: Number(body.trackingState?.pausedDaysTotal) || 0,
       },
       notificationPrefs: (typeof body.notificationPrefs === 'object' && body.notificationPrefs !== null) ? body.notificationPrefs : {},
-      updatedAt: new Date().toISOString(),
+      relapseEvents,
+      savingsPot,
+      cravingPlan,
+      wellbeingLog,
+      metricsHistory,
+      updatedAt: typeof body.updatedAt === 'string' ? body.updatedAt.slice(0, 40) : new Date().toISOString(),
     };
     const states = await readAccountStates();
     states[req.user.id] = safeState;

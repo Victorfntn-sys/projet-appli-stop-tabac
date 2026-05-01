@@ -19,13 +19,21 @@ const STORAGE_NOTIFICATION_PREFS = 'stop-smoking-notification-preferences';
 const STORAGE_ANALYTICS_EVENTS = 'stop-smoking-analytics-events';
 const STORAGE_AUTH_TOKEN = 'stop-smoking-auth-token';
 const STORAGE_ENTRY_CHOICE = 'stop-smoking-entry-choice';
+const STORAGE_SAVINGS_POT = 'stop-smoking-savings-pot';
+const STORAGE_METRICS_HISTORY = 'stop-smoking-metrics-history';
+const STORAGE_RELAPSE_EVENTS = 'stop-smoking-relapse-events';
+const STORAGE_CRAVING_PLAN = 'stop-smoking-craving-plan';
+const STORAGE_WELLBEING_LOG = 'stop-smoking-wellbeing-log';
+const STORAGE_LAST_ACCOUNT_SYNC_AT = 'stop-smoking-last-account-sync-at';
 const cigarettesPerDay = document.getElementById('cigarettesPerDay');
 const pricePerPack = document.getElementById('pricePerPack');
 const cigarettesPerPack = document.getElementById('cigarettesPerPack');
 const quitDate = document.getElementById('quitDate');
 const calculateButton = document.getElementById('calculateButton');
 const pauseToggleButton = document.getElementById('pauseToggleButton');
+const relapseButton = document.getElementById('relapseButton');
 const trackingStatus = document.getElementById('trackingStatus');
+const relapseStatus = document.getElementById('relapseStatus');
 const installAppButton = document.getElementById('installAppButton');
 const moneySaved = document.getElementById('moneySaved');
 const cigarettesSaved = document.getElementById('cigarettesSaved');
@@ -36,6 +44,14 @@ const goalNameText = document.getElementById('goalNameText');
 const goalProgressText = document.getElementById('goalProgressText');
 const goalTimeText = document.getElementById('goalTimeText');
 const goalProgressBar = document.getElementById('goalProgressBar');
+const realSavingsAmount = document.getElementById('realSavingsAmount');
+const savingsDepositAmount = document.getElementById('savingsDepositAmount');
+const addSavingsDepositButton = document.getElementById('addSavingsDepositButton');
+const savingsPotStatus = document.getElementById('savingsPotStatus');
+const nextFinancialMilestone = document.getElementById('nextFinancialMilestone');
+const financialMilestoneHint = document.getElementById('financialMilestoneHint');
+const trendSavedMoney = document.getElementById('trendSavedMoney');
+const trendCigarettes = document.getElementById('trendCigarettes');
 const openBadgesModalButton = document.getElementById('openBadgesModalButton');
 const badgesModal = document.getElementById('badgesModal');
 const badgesModalClose = document.getElementById('badgesModalClose');
@@ -81,6 +97,10 @@ const onboardingNotificationOptIn = document.getElementById('onboardingNotificat
 const onboardingCigarettesPerDay = document.getElementById('onboardingCigarettesPerDay');
 const onboardingPricePerPack = document.getElementById('onboardingPricePerPack');
 const onboardingQuitDate = document.getElementById('onboardingQuitDate');
+const onboardingGoalName = document.getElementById('onboardingGoalName');
+const onboardingGoalAmount = document.getElementById('onboardingGoalAmount');
+const onboardingNotificationFrequency = document.getElementById('onboardingNotificationFrequency');
+const onboardingNotificationMode = document.getElementById('onboardingNotificationMode');
 const onboardingSteps = Array.from(document.querySelectorAll('.onboarding-step'));
 const firstLaunchModal = document.getElementById('firstLaunchModal');
 const firstLaunchCreateAccountBtn = document.getElementById('firstLaunchCreateAccountBtn');
@@ -91,6 +111,16 @@ const cravingTimer = document.getElementById('cravingTimer');
 const cravingStatus = document.getElementById('cravingStatus');
 const cravingTip = document.getElementById('cravingTip');
 const cravingSessionCount = document.getElementById('cravingSessionCount');
+const cravingAction1 = document.getElementById('cravingAction1');
+const cravingAction2 = document.getElementById('cravingAction2');
+const cravingAction3 = document.getElementById('cravingAction3');
+const wellbeingEnergy = document.getElementById('wellbeingEnergy');
+const wellbeingBreath = document.getElementById('wellbeingBreath');
+const wellbeingSleep = document.getElementById('wellbeingSleep');
+const saveWellbeingButton = document.getElementById('saveWellbeingButton');
+const wellbeingStatus = document.getElementById('wellbeingStatus');
+const accountSyncStatus = document.getElementById('accountSyncStatus');
+const accountRestoreButton = document.getElementById('accountRestoreButton');
 const ADMOB_APP_ID = 'ca-app-pub-4442230652158494~6410750898';
 const ADMOB_UNIT_ID = 'ca-app-pub-4442230652158494/1158424217';
 let lastPackCount = 0;
@@ -119,6 +149,9 @@ const LAUNCH_AD_AUTO_CLOSE_SECONDS = 5;
 const CRAVING_SESSION_DURATION_SECONDS = 180;
 const MAX_ANALYTICS_EVENTS = 200;
 const SAVINGS_NOTIFICATION_PACK_STEP = 3;
+const METRICS_HISTORY_MAX_DAYS = 120;
+const WELLBEING_HISTORY_MAX_ENTRIES = 52;
+const ACCOUNT_SYNC_INTERVAL_MS = 3 * 60 * 1000;
 let trackingState = {
   isPaused: false,
   pauseStartedAt: null,
@@ -236,6 +269,140 @@ function getStoredFieldValue(key) {
 function saveFieldValue(key, value) {
   try {
     localStorage.setItem(key, value);
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function getStoredJson(key, fallbackValue) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) {
+      return fallbackValue;
+    }
+    return JSON.parse(raw);
+  } catch {
+    return fallbackValue;
+  }
+}
+
+function saveStoredJson(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function clampScore(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return 0;
+  }
+  return Math.max(0, Math.min(10, Math.round(numeric)));
+}
+
+function getCurrentIsoWeekKey(date = new Date()) {
+  const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((utcDate - yearStart) / 86400000) + 1) / 7);
+  return `${utcDate.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
+function getStoredSavingsPot() {
+  const parsed = getStoredJson(STORAGE_SAVINGS_POT, null);
+  if (!parsed || typeof parsed !== 'object') {
+    return { total: 0, deposits: [] };
+  }
+  return {
+    total: Number(parsed.total) || 0,
+    deposits: Array.isArray(parsed.deposits) ? parsed.deposits.slice(-200) : [],
+  };
+}
+
+function saveSavingsPot(pot) {
+  saveStoredJson(STORAGE_SAVINGS_POT, {
+    total: Number(pot?.total) || 0,
+    deposits: Array.isArray(pot?.deposits) ? pot.deposits.slice(-200) : [],
+  });
+}
+
+function getStoredMetricsHistory() {
+  const parsed = getStoredJson(STORAGE_METRICS_HISTORY, []);
+  return Array.isArray(parsed) ? parsed.slice(-METRICS_HISTORY_MAX_DAYS) : [];
+}
+
+function saveMetricsHistory(history) {
+  saveStoredJson(STORAGE_METRICS_HISTORY, Array.isArray(history) ? history.slice(-METRICS_HISTORY_MAX_DAYS) : []);
+}
+
+function getStoredRelapseEvents() {
+  const parsed = getStoredJson(STORAGE_RELAPSE_EVENTS, []);
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+  return Array.from(new Set(parsed.filter(value => /^\d{4}-\d{2}-\d{2}$/.test(String(value))))).sort();
+}
+
+function saveRelapseEvents(events) {
+  const normalized = Array.from(new Set((Array.isArray(events) ? events : [])
+    .filter(value => /^\d{4}-\d{2}-\d{2}$/.test(String(value))))).sort();
+  saveStoredJson(STORAGE_RELAPSE_EVENTS, normalized);
+}
+
+function getDefaultCravingPlan() {
+  return [
+    'Boire un verre d\'eau lentement',
+    'Marcher 3 minutes',
+    'Respirer 4 secondes / expirer 6 secondes',
+  ];
+}
+
+function getStoredCravingPlan() {
+  const parsed = getStoredJson(STORAGE_CRAVING_PLAN, getDefaultCravingPlan());
+  if (!Array.isArray(parsed)) {
+    return getDefaultCravingPlan();
+  }
+  const normalized = parsed.map(value => String(value || '').trim()).slice(0, 3);
+  while (normalized.length < 3) {
+    normalized.push('');
+  }
+  return normalized;
+}
+
+function saveCravingPlan(plan) {
+  const normalized = (Array.isArray(plan) ? plan : []).map(value => String(value || '').trim()).slice(0, 3);
+  while (normalized.length < 3) {
+    normalized.push('');
+  }
+  saveStoredJson(STORAGE_CRAVING_PLAN, normalized);
+}
+
+function getStoredWellbeingLog() {
+  const parsed = getStoredJson(STORAGE_WELLBEING_LOG, []);
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+  return parsed.slice(-WELLBEING_HISTORY_MAX_ENTRIES);
+}
+
+function saveWellbeingLog(entries) {
+  saveStoredJson(STORAGE_WELLBEING_LOG, Array.isArray(entries) ? entries.slice(-WELLBEING_HISTORY_MAX_ENTRIES) : []);
+}
+
+function getStoredLastAccountSyncAt() {
+  try {
+    return localStorage.getItem(STORAGE_LAST_ACCOUNT_SYNC_AT) || '';
+  } catch {
+    return '';
+  }
+}
+
+function saveLastAccountSyncAt(value) {
+  try {
+    localStorage.setItem(STORAGE_LAST_ACCOUNT_SYNC_AT, String(value || ''));
   } catch {
     // ignore storage errors
   }
@@ -723,6 +890,8 @@ function applyOnboardingValues() {
   const cigsPerDayValue = String(onboardingCigarettesPerDay?.value || '').trim();
   const pricePerPackValue = String(onboardingPricePerPack?.value || '').trim();
   const quitDateValue = String(onboardingQuitDate?.value || '').trim();
+  const goalNameValue = String(onboardingGoalName?.value || '').trim();
+  const goalAmountValue = String(onboardingGoalAmount?.value || '').trim();
 
   if (cigsPerDayValue) {
     cigarettesPerDay.value = cigsPerDayValue;
@@ -739,6 +908,25 @@ function applyOnboardingValues() {
     quitDate.value = quitDateValue;
     saveQuitDate(quitDateValue);
   }
+
+  if (goalNameValue) {
+    goalNameInput.value = goalNameValue;
+    saveFieldValue(STORAGE_GOAL_NAME, goalNameValue);
+  }
+
+  if (goalAmountValue) {
+    const normalizedGoalAmountValue = goalAmountValue.replace(/[^0-9,]/g, '');
+    goalAmountInput.value = normalizedGoalAmountValue;
+    saveFieldValue(STORAGE_GOAL_AMOUNT, normalizedGoalAmountValue);
+  }
+
+  if (onboardingNotificationFrequency && notificationFrequency) {
+    notificationFrequency.value = onboardingNotificationFrequency.value;
+  }
+  if (onboardingNotificationMode && notificationMode) {
+    notificationMode.value = onboardingNotificationMode.value;
+  }
+  persistNotificationPrefsFromInputs();
 
   if (onboardingNotificationOptIn?.checked) {
     notificationsEnabled = true;
@@ -768,6 +956,18 @@ function openOnboarding() {
   if (onboardingQuitDate) {
     onboardingQuitDate.value = String(quitDate.value || todayIso);
   }
+  if (onboardingGoalName) {
+    onboardingGoalName.value = String(goalNameInput.value || '');
+  }
+  if (onboardingGoalAmount) {
+    onboardingGoalAmount.value = String(goalAmountInput.value || '500,00');
+  }
+  if (onboardingNotificationFrequency) {
+    onboardingNotificationFrequency.value = notificationFrequency?.value || defaultNotificationPrefs.frequency;
+  }
+  if (onboardingNotificationMode) {
+    onboardingNotificationMode.value = notificationMode?.value || defaultNotificationPrefs.mode;
+  }
 
   renderOnboardingStep();
   onboardingModal.classList.add('open');
@@ -782,6 +982,7 @@ function closeOnboarding({ completed = false } = {}) {
 
   if (completed) {
     applyOnboardingValues();
+    syncAccountStateToServer();
     trackEvent('onboarding_completed');
   } else {
     trackEvent('onboarding_skipped');
@@ -862,7 +1063,9 @@ function startCravingSession() {
     cravingDoneButton.hidden = false;
   }
   if (cravingTip) {
-    const tip = cravingTips[Math.floor(Math.random() * cravingTips.length)];
+    const customActions = getCravingPlanActions();
+    const source = customActions.length ? customActions : cravingTips;
+    const tip = source[Math.floor(Math.random() * source.length)];
     cravingTip.textContent = `Action: ${tip}`;
   }
 
@@ -958,14 +1161,22 @@ function getSavingsNotificationCheckpoint(packsSaved) {
   return Math.max(0, Math.floor((Number(packsSaved) || 0) / SAVINGS_NOTIFICATION_PACK_STEP) * SAVINGS_NOTIFICATION_PACK_STEP);
 }
 
+function getReminderDispatchKey(nowDate = new Date(), prefs = getCurrentNotificationPrefs()) {
+  if (prefs.frequency === 'weekly') {
+    return getCurrentIsoWeekKey(nowDate);
+  }
+  return nowDate.toISOString().split('T')[0];
+}
+
 function buildSavingsNotificationMessage(newlyUnlockedPacks, amountToSave, goalName, mode) {
   const formattedAmount = formatCurrency(amountToSave);
   const packLabel = `${newlyUnlockedPacks} paquet${newlyUnlockedPacks > 1 ? 's' : ''}`;
   const goalSuffix = goalName ? ` pour ${goalName}` : '';
+  const estimatedMonthlyPotential = formatCurrency(Math.max(0, parseFrenchNumber(pricePerPack.value) * (Number(cigarettesPerDay.value) || 0) * (30 / Math.max(1, Number(cigarettesPerPack.value) || 1))));
   if (mode === 'save') {
-    return `Bon cap : ${packLabel} economises. Mets de cote ${formattedAmount}${goalSuffix} cette semaine.`;
+    return `Recap hebdo: ${packLabel} economises. Mets de cote ${formattedAmount}${goalSuffix}. Potentiel mensuel: ${estimatedMonthlyPotential}.`;
   }
-  return `Bravo : ${packLabel} economises depuis le dernier palier. Tu continues a avancer${goalSuffix}.`;
+  return `Recap hebdo: ${packLabel} economises depuis le dernier palier. Tu continues a avancer${goalSuffix}.`;
 }
 
 function setFeedbackStatus(message, type = '') {
@@ -1021,6 +1232,7 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 function getCurrentUserState() {
+  const savingsPot = getStoredSavingsPot();
   return {
     clientId,
     cigsPerDay: Number(cigarettesPerDay.value) || 0,
@@ -1033,6 +1245,10 @@ function getCurrentUserState() {
     pauseStartedAt: trackingState.pauseStartedAt,
     pausedDaysTotal: trackingState.pausedDaysTotal,
     notificationPrefs: getCurrentNotificationPrefs(),
+    relapseEvents: getStoredRelapseEvents(),
+    savingsPot,
+    cravingPlan: getStoredCravingPlan(),
+    wellbeingLog: getStoredWellbeingLog(),
     timezoneOffsetMinutes: new Date().getTimezoneOffset(),
   };
 }
@@ -1167,14 +1383,17 @@ function maybeSendPauseEncouragement() {
     return;
   }
 
-  const todayIso = getTodayIso();
+  const now = new Date();
+  const prefs = getCurrentNotificationPrefs();
+  const dispatchKey = getReminderDispatchKey(now, prefs);
   const lastSentDate = getStoredLastPauseEncouragement();
-  if (lastSentDate === todayIso) {
+  if (lastSentDate === dispatchKey) {
     return;
   }
-  const message = getPauseEncouragementMessage(todayIso);
-  sendNotification(`Encouragement du jour : ${message}`);
-  saveLastPauseEncouragement(todayIso);
+  const message = getPauseEncouragementMessage(dispatchKey);
+  const title = prefs.frequency === 'weekly' ? 'Recap hebdo :' : 'Encouragement du jour :';
+  sendNotification(`${title} ${message}`);
+  saveLastPauseEncouragement(dispatchKey);
 }
 
 function startPauseReminderScheduler() {
@@ -1193,6 +1412,7 @@ function startPushStateSyncScheduler() {
       return;
     }
     syncPushState();
+    syncAccountStateToServer();
   }, PUSH_STATE_SYNC_INTERVAL_MS);
 }
 
@@ -1211,11 +1431,243 @@ function getPausedDaysToday(today) {
   return diffMs >= 0 ? Math.floor(diffMs / (1000 * 60 * 60 * 24)) : 0;
 }
 
-function getTrackingStatusText(today) {
-  if (trackingState.isPaused && trackingState.pauseStartedAt) {
-    return `Suivi en pause depuis le ${formatDateHuman(trackingState.pauseStartedAt)}.`;
+function getRelapseDaysCountUntil(today) {
+  const events = getStoredRelapseEvents();
+  const todayIso = today.toISOString().split('T')[0];
+  return events.filter(value => value <= todayIso).length;
+}
+
+function renderRelapseStatus(today = new Date()) {
+  if (!relapseStatus) {
+    return;
   }
-  return 'Suivi actif.';
+  const count = getRelapseDaysCountUntil(today);
+  if (!count) {
+    relapseStatus.textContent = 'Aucune rechute enregistrée. Un écart ponctuel peut être géré sans culpabiliser.';
+    return;
+  }
+  relapseStatus.textContent = `${count} jour${count > 1 ? 's' : ''} de rechute enregistrés. Votre progression continue sans remise à zéro brutale.`;
+}
+
+function buildFinancialMilestones(goalTarget) {
+  if (goalTarget > 0) {
+    const percentMilestones = [0.1, 0.25, 0.5, 0.75, 1].map(ratio => Math.round(goalTarget * ratio));
+    const fixedMilestones = [50, 100, 250, 500, 1000, 1500, 2500];
+    return Array.from(new Set([...percentMilestones, ...fixedMilestones]))
+      .filter(value => value > 0)
+      .sort((a, b) => a - b);
+  }
+  return [50, 100, 250, 500, 1000, 1500, 2500];
+}
+
+function renderFinancialMilestones(savedMoney) {
+  if (!nextFinancialMilestone || !financialMilestoneHint) {
+    return;
+  }
+  const goalTarget = parseFrenchNumber(goalAmountInput?.value || '0');
+  const milestones = buildFinancialMilestones(goalTarget);
+  const nextMilestone = milestones.find(value => value > savedMoney);
+  if (!nextMilestone) {
+    nextFinancialMilestone.textContent = 'Tous les paliers atteints';
+    financialMilestoneHint.textContent = 'Excellent. Vous avez dépassé tous les seuils proposés.';
+    return;
+  }
+  const remaining = Math.max(0, nextMilestone - savedMoney);
+  nextFinancialMilestone.textContent = `${formatCurrency(nextMilestone)}`;
+  financialMilestoneHint.textContent = `Encore ${formatCurrency(remaining)} pour atteindre ce palier.`;
+}
+
+function renderSavingsPot(savedMoney = 0) {
+  if (!realSavingsAmount || !savingsPotStatus) {
+    return;
+  }
+  const pot = getStoredSavingsPot();
+  realSavingsAmount.textContent = formatCurrency(pot.total);
+  const gap = savedMoney - pot.total;
+  if (pot.deposits.length === 0) {
+    savingsPotStatus.textContent = 'Aucun dépôt pour le moment.';
+    return;
+  }
+  const lastDeposit = pot.deposits[pot.deposits.length - 1];
+  const gapText = gap > 0
+    ? `Il reste ${formatCurrency(gap)} estimé(s) à mettre de côté.`
+    : 'Votre cagnotte réelle rattrape ou dépasse l\'estimé. Bravo.';
+  savingsPotStatus.textContent = `Dernier dépôt: ${formatCurrency(Number(lastDeposit.amount) || 0)} le ${formatDateHuman(lastDeposit.at)}. ${gapText}`;
+}
+
+function recordMetricsSnapshot(metrics) {
+  const todayIso = getTodayIso();
+  const history = getStoredMetricsHistory();
+  const nextEntry = {
+    date: todayIso,
+    savedMoney: Number(metrics.savedMoney) || 0,
+    savedCigarettes: Number(metrics.savedCigarettes) || 0,
+  };
+  const existingIndex = history.findIndex(entry => entry.date === todayIso);
+  if (existingIndex >= 0) {
+    history[existingIndex] = nextEntry;
+  } else {
+    history.push(nextEntry);
+  }
+  saveMetricsHistory(history);
+}
+
+function computeTrendDelta(history, key, daysWindow) {
+  if (!Array.isArray(history) || history.length === 0) {
+    return 0;
+  }
+  const latest = history[history.length - 1];
+  const latestDate = new Date(`${latest.date}T00:00:00`);
+  if (!Number.isFinite(latestDate.getTime())) {
+    return 0;
+  }
+  const thresholdDate = new Date(latestDate.getTime() - ((daysWindow - 1) * 86400000));
+  const baseline = history.find(entry => {
+    const date = new Date(`${entry.date}T00:00:00`);
+    return Number.isFinite(date.getTime()) && date >= thresholdDate;
+  }) || history[0];
+  return (Number(latest[key]) || 0) - (Number(baseline[key]) || 0);
+}
+
+function renderTrends() {
+  const history = getStoredMetricsHistory();
+  const saved7 = computeTrendDelta(history, 'savedMoney', 7);
+  const saved30 = computeTrendDelta(history, 'savedMoney', 30);
+  const cigs7 = Math.max(0, Math.round(computeTrendDelta(history, 'savedCigarettes', 7)));
+  const cigs30 = Math.max(0, Math.round(computeTrendDelta(history, 'savedCigarettes', 30)));
+
+  if (trendSavedMoney) {
+    trendSavedMoney.textContent = `7j: ${formatCurrency(Math.max(0, saved7))} · 30j: ${formatCurrency(Math.max(0, saved30))}`;
+  }
+  if (trendCigarettes) {
+    trendCigarettes.textContent = `Cigarettes évitées · 7j: ${cigs7.toLocaleString(locale)} · 30j: ${cigs30.toLocaleString(locale)}`;
+  }
+}
+
+function applyCravingPlanInputs() {
+  const plan = getStoredCravingPlan();
+  if (cravingAction1) cravingAction1.value = plan[0] || '';
+  if (cravingAction2) cravingAction2.value = plan[1] || '';
+  if (cravingAction3) cravingAction3.value = plan[2] || '';
+}
+
+function persistCravingPlanFromInputs() {
+  saveCravingPlan([
+    cravingAction1?.value || '',
+    cravingAction2?.value || '',
+    cravingAction3?.value || '',
+  ]);
+  syncAccountStateToServer();
+}
+
+function getCravingPlanActions() {
+  return getStoredCravingPlan().map(value => String(value || '').trim()).filter(Boolean);
+}
+
+function renderWellbeingStatus() {
+  if (!wellbeingStatus) {
+    return;
+  }
+  const entries = getStoredWellbeingLog();
+  if (entries.length === 0) {
+    wellbeingStatus.textContent = 'Aucune auto-évaluation enregistrée.';
+    return;
+  }
+  const latest = entries[entries.length - 1];
+  const previous = entries.length > 1 ? entries[entries.length - 2] : null;
+  const latestAvg = ((Number(latest.energy) || 0) + (Number(latest.breath) || 0) + (Number(latest.sleep) || 0)) / 3;
+  const previousAvg = previous
+    ? ((Number(previous.energy) || 0) + (Number(previous.breath) || 0) + (Number(previous.sleep) || 0)) / 3
+    : null;
+  const trend = previousAvg === null
+    ? 'première mesure'
+    : latestAvg > previousAvg
+      ? 'en amélioration'
+      : latestAvg < previousAvg
+        ? 'en léger recul'
+        : 'stable';
+  wellbeingStatus.textContent = `Semaine ${latest.weekKey}: énergie ${latest.energy}/10, souffle ${latest.breath}/10, sommeil ${latest.sleep}/10 (${trend}).`;
+}
+
+function saveWeeklyWellbeingAssessment() {
+  const weekKey = getCurrentIsoWeekKey();
+  const nextEntry = {
+    weekKey,
+    at: new Date().toISOString(),
+    energy: clampScore(wellbeingEnergy?.value),
+    breath: clampScore(wellbeingBreath?.value),
+    sleep: clampScore(wellbeingSleep?.value),
+  };
+  const entries = getStoredWellbeingLog();
+  const existingIndex = entries.findIndex(entry => entry.weekKey === weekKey);
+  if (existingIndex >= 0) {
+    entries[existingIndex] = nextEntry;
+  } else {
+    entries.push(nextEntry);
+  }
+  saveWellbeingLog(entries);
+  renderWellbeingStatus();
+  trackEvent('wellbeing_saved', nextEntry);
+  syncAccountStateToServer();
+}
+
+function updateAccountSyncStatusLabel() {
+  if (!accountSyncStatus) {
+    return;
+  }
+  const value = getStoredLastAccountSyncAt();
+  if (!value) {
+    accountSyncStatus.textContent = 'Dernière synchro : -';
+    return;
+  }
+  accountSyncStatus.textContent = `Dernière synchro : ${new Date(value).toLocaleString(locale)}`;
+}
+
+function registerRelapseForToday() {
+  const todayIso = getTodayIso();
+  const events = getStoredRelapseEvents();
+  if (events.includes(todayIso)) {
+    renderRelapseStatus(new Date());
+    return false;
+  }
+  events.push(todayIso);
+  saveRelapseEvents(events);
+  refreshTrackingUI(new Date());
+  calculateSavings();
+  syncAccountStateToServer();
+  trackEvent('relapse_registered', { at: todayIso });
+  return true;
+}
+
+function addSavingsDeposit() {
+  const value = parseFrenchNumber(savingsDepositAmount?.value || '0');
+  if (!value || value <= 0) {
+    if (savingsPotStatus) {
+      savingsPotStatus.textContent = 'Entrez un montant valide pour ajouter un dépôt.';
+    }
+    return;
+  }
+  const pot = getStoredSavingsPot();
+  const nowIso = new Date().toISOString();
+  pot.total = Math.max(0, pot.total + value);
+  pot.deposits.push({ amount: value, at: nowIso });
+  saveSavingsPot(pot);
+  if (savingsDepositAmount) {
+    savingsDepositAmount.value = '20,00';
+  }
+  calculateSavings();
+  syncAccountStateToServer();
+  trackEvent('savings_deposit_added', { amount: value, at: nowIso });
+}
+
+function getTrackingStatusText(today) {
+  const relapseDays = getRelapseDaysCountUntil(today);
+  if (trackingState.isPaused && trackingState.pauseStartedAt) {
+    return `Suivi en pause depuis le ${formatDateHuman(trackingState.pauseStartedAt)}${relapseDays ? ` · ${relapseDays} jour${relapseDays > 1 ? 's' : ''} de rechute géré${relapseDays > 1 ? 's' : ''}` : ''}.`;
+  }
+  return relapseDays
+    ? `Suivi actif · ${relapseDays} jour${relapseDays > 1 ? 's' : ''} de rechute enregistré${relapseDays > 1 ? 's' : ''} sans remise à zéro.`
+    : 'Suivi actif.';
 }
 
 function refreshTrackingUI(today = new Date()) {
@@ -1225,6 +1677,7 @@ function refreshTrackingUI(today = new Date()) {
   if (trackingStatus) {
     trackingStatus.textContent = getTrackingStatusText(today);
   }
+  renderRelapseStatus(today);
 }
 
 function togglePauseTracking() {
@@ -1464,7 +1917,8 @@ function calculateSavings() {
   const diffMs = today - startDate;
   const elapsedDays = diffMs >= 0 ? Math.floor(diffMs / (1000 * 60 * 60 * 24)) : 0;
   const pausedDays = trackingState.pausedDaysTotal + getPausedDaysToday(today);
-  const days = Math.max(0, elapsedDays - pausedDays);
+  const relapseDays = getRelapseDaysCountUntil(today);
+  const days = Math.max(0, elapsedDays - pausedDays - relapseDays);
 
   const dailyCost = cigsPerPack > 0 ? (price / cigsPerPack) * cigsPerDay : 0;
   const savedMoney = dailyCost * days;
@@ -1476,8 +1930,12 @@ function calculateSavings() {
 
   milestoneText.textContent = getHealthMilestone(days);
   updateGoalDisplay(savedMoney, dailyCost);
+  renderFinancialMilestones(savedMoney);
   updateBadges(days, savedMoney, goalTarget);
   createSavingsProjection(days, dailyCost, savedMoney);
+  renderSavingsPot(savedMoney);
+  recordMetricsSnapshot({ savedMoney, savedCigarettes });
+  renderTrends();
   syncPushState();
   queueUserStateExcelSync({
     daysWithoutSmoking: days,
@@ -1716,6 +2174,10 @@ pricePerPack.addEventListener('input', () => {
   calculateSavings();
 });
 
+savingsDepositAmount?.addEventListener('input', () => {
+  savingsDepositAmount.value = savingsDepositAmount.value.replace(/[^0-9,]/g, '');
+});
+
 goalNameInput.addEventListener('input', () => {
   saveFieldValue(STORAGE_GOAL_NAME, goalNameInput.value);
   calculateSavings();
@@ -1739,7 +2201,14 @@ cigarettesPerPack.addEventListener('input', () => {
 });
 calculateButton.addEventListener('click', handleCalculateButtonClick);
 pauseToggleButton.addEventListener('click', togglePauseTracking);
+relapseButton?.addEventListener('click', () => {
+  const created = registerRelapseForToday();
+  if (!created && relapseStatus) {
+    relapseStatus.textContent = 'Rechute déjà enregistrée aujourd\'hui. Vous pouvez repartir dès maintenant.';
+  }
+});
 feedbackForm?.addEventListener('submit', handleFeedbackSubmit);
+addSavingsDepositButton?.addEventListener('click', addSavingsDeposit);
 launchAdClose?.addEventListener('click', closeLaunchAd);
 launchAdModal?.addEventListener('click', event => {
   if (event.target === launchAdModal) {
@@ -1761,6 +2230,10 @@ onboardingNextButton?.addEventListener('click', () => {
 });
 startCravingButton?.addEventListener('click', startCravingSession);
 cravingDoneButton?.addEventListener('click', () => finishCravingSession({ success: true }));
+cravingAction1?.addEventListener('input', persistCravingPlanFromInputs);
+cravingAction2?.addEventListener('input', persistCravingPlanFromInputs);
+cravingAction3?.addEventListener('input', persistCravingPlanFromInputs);
+saveWellbeingButton?.addEventListener('click', saveWeeklyWellbeingAssessment);
 notificationFrequency?.addEventListener('change', persistNotificationPrefsFromInputs);
 notificationReminderTime?.addEventListener('change', persistNotificationPrefsFromInputs);
 notificationQuietStart?.addEventListener('change', persistNotificationPrefsFromInputs);
@@ -1768,6 +2241,11 @@ notificationQuietEnd?.addEventListener('change', persistNotificationPrefsFromInp
 notificationTone?.addEventListener('change', persistNotificationPrefsFromInputs);
 notificationMode?.addEventListener('change', persistNotificationPrefsFromInputs);
 notificationWeeklyDay?.addEventListener('change', persistNotificationPrefsFromInputs);
+onboardingNotificationFrequency?.addEventListener('change', () => {
+  if (onboardingNotificationFrequency && onboardingNotificationFrequency.value === 'weekly' && onboardingNotificationMode) {
+    onboardingNotificationMode.value = onboardingNotificationMode.value || 'save';
+  }
+});
 
 // -----------------------------------------------------------------------
 // Auth & account helpers
@@ -1811,6 +2289,7 @@ function openAccountModal() {
     if (authPanel) authPanel.hidden = true;
     const emailLabel = modal.querySelector('#accountEmailLabel');
     if (emailLabel) emailLabel.textContent = currentUser.email;
+    updateAccountSyncStatusLabel();
   } else {
     if (loggedInPanel) loggedInPanel.hidden = true;
     if (authPanel) authPanel.hidden = false;
@@ -1883,28 +2362,98 @@ function restoreAccountState(state) {
     const gaEl = document.getElementById('goalAmount');
     if (gaEl) gaEl.value = state.goalAmount;
   }
+
+  if (state.trackingState && typeof state.trackingState === 'object') {
+    trackingState = {
+      isPaused: Boolean(state.trackingState.isPaused),
+      pauseStartedAt: state.trackingState.pauseStartedAt || null,
+      pausedDaysTotal: Number(state.trackingState.pausedDaysTotal) || 0,
+    };
+    saveTrackingState();
+  }
+
+  if (state.notificationPrefs && typeof state.notificationPrefs === 'object') {
+    saveNotificationPrefs({ ...defaultNotificationPrefs, ...state.notificationPrefs });
+    applyNotificationPrefsToInputs();
+    updateNotificationStatus('Notification' in window ? Notification.permission : 'unsupported');
+  }
+
+  if (state.relapseEvents && Array.isArray(state.relapseEvents)) {
+    saveRelapseEvents(state.relapseEvents);
+  }
+
+  if (state.savingsPot && typeof state.savingsPot === 'object') {
+    saveSavingsPot(state.savingsPot);
+  }
+
+  if (state.cravingPlan && Array.isArray(state.cravingPlan)) {
+    saveCravingPlan(state.cravingPlan);
+    applyCravingPlanInputs();
+  }
+
+  if (state.wellbeingLog && Array.isArray(state.wellbeingLog)) {
+    saveWellbeingLog(state.wellbeingLog);
+    renderWellbeingStatus();
+  }
+
+  if (state.metricsHistory && Array.isArray(state.metricsHistory)) {
+    saveMetricsHistory(state.metricsHistory);
+    renderTrends();
+  }
+
+  if (state.updatedAt) {
+    saveLastAccountSyncAt(state.updatedAt);
+    updateAccountSyncStatusLabel();
+  }
+
+  refreshTrackingUI(new Date());
   calculateSavings();
+}
+
+async function pullAccountStateFromServer() {
+  if (!currentUser) {
+    return null;
+  }
+  const stateRes = await fetch('/api/account/state', { headers: getAuthHeaders() });
+  if (!stateRes.ok) {
+    return null;
+  }
+  const stateData = await stateRes.json();
+  if (stateData.state) {
+    restoreAccountState(stateData.state);
+    return stateData.state;
+  }
+  return null;
 }
 
 async function syncAccountStateToServer() {
   if (!currentUser) return;
   try {
-    const trackingState = JSON.parse(localStorage.getItem(STORAGE_TRACKING_STATE) || '{}');
+    const trackingStatePayload = JSON.parse(localStorage.getItem(STORAGE_TRACKING_STATE) || '{}');
     const notificationPrefs = JSON.parse(localStorage.getItem(STORAGE_NOTIFICATION_PREFS) || '{}');
+    const statePayload = {
+      quitDate: localStorage.getItem(STORAGE_QUIT_DATE) || '',
+      cigsPerDay: Number(localStorage.getItem(STORAGE_CIGARETTES_PER_DAY)) || 0,
+      cigsPerPack: Number(localStorage.getItem(STORAGE_CIGARETTES_PER_PACK)) || 0,
+      pricePerPack: parseFrenchNumber(localStorage.getItem(STORAGE_PRICE_PER_PACK) || '0'),
+      goalName: localStorage.getItem(STORAGE_GOAL_NAME) || '',
+      goalAmount: parseFrenchNumber(localStorage.getItem(STORAGE_GOAL_AMOUNT) || '0'),
+      trackingState: trackingStatePayload,
+      notificationPrefs,
+      relapseEvents: getStoredRelapseEvents(),
+      savingsPot: getStoredSavingsPot(),
+      cravingPlan: getStoredCravingPlan(),
+      wellbeingLog: getStoredWellbeingLog(),
+      metricsHistory: getStoredMetricsHistory(),
+      updatedAt: new Date().toISOString(),
+    };
     await fetch('/api/account/state', {
       method: 'PUT',
       headers: getAuthHeaders(),
-      body: JSON.stringify({
-        quitDate: localStorage.getItem(STORAGE_QUIT_DATE) || '',
-        cigsPerDay: Number(localStorage.getItem(STORAGE_CIGARETTES_PER_DAY)) || 0,
-        cigsPerPack: Number(localStorage.getItem(STORAGE_CIGARETTES_PER_PACK)) || 0,
-        pricePerPack: Number(localStorage.getItem(STORAGE_PRICE_PER_PACK)) || 0,
-        goalName: localStorage.getItem(STORAGE_GOAL_NAME) || '',
-        goalAmount: Number(localStorage.getItem(STORAGE_GOAL_AMOUNT)) || 0,
-        trackingState,
-        notificationPrefs,
-      }),
+      body: JSON.stringify(statePayload),
     });
+    saveLastAccountSyncAt(statePayload.updatedAt);
+    updateAccountSyncStatusLabel();
   } catch { /* non-blocking */ }
 }
 
@@ -1930,12 +2479,7 @@ async function handleAccountLogin(event) {
     saveAuthToken(data.token);
     currentUser = data.user;
     updateAccountUI();
-    // Restore server-side state
-    const stateRes = await fetch('/api/account/state', { headers: getAuthHeaders() });
-    if (stateRes.ok) {
-      const stateData = await stateRes.json();
-      if (stateData.state) restoreAccountState(stateData.state);
-    }
+    await pullAccountStateFromServer();
     closeAccountModal();
     trackEvent('account_login');
   } catch {
@@ -2006,6 +2550,8 @@ async function initAccount() {
       const data = await res.json();
       currentUser = data.user;
       updateAccountUI();
+      await pullAccountStateFromServer();
+      updateAccountSyncStatusLabel();
     } else {
       clearAuthToken();
     }
@@ -2134,6 +2680,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   updateAppLoading(28, 'Restauration de vos données...');
   notificationsEnabled = getStoredNotificationsEnabled();
   applyNotificationPrefsToInputs();
+  applyCravingPlanInputs();
+  renderWellbeingStatus();
+  renderTrends();
+  updateAccountSyncStatusLabel();
   const storedDate = getStoredQuitDate();
   const storedCigarettesPerDay = getStoredFieldValue(STORAGE_CIGARETTES_PER_DAY);
   const storedPricePerPack = getStoredFieldValue(STORAGE_PRICE_PER_PACK);
@@ -2167,6 +2717,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   updateAppLoading(54, 'Calcul de votre progression...');
   refreshTrackingUI(today);
   calculateSavings();
+  renderRelapseStatus(today);
   updateAccountUI();
   initAccount().catch(() => undefined);
   updateNotificationStatus(Notification.permission);
@@ -2195,6 +2746,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (!document.hidden) {
       maybeSendPauseEncouragement();
       syncPushState();
+      pullAccountStateFromServer().catch(() => undefined);
+      syncAccountStateToServer();
       serviceWorkerRegistration?.update().catch(() => undefined);
     }
   });
@@ -2204,6 +2757,8 @@ window.addEventListener('DOMContentLoaded', async () => {
       await subscribeToPushNotifications();
       await syncPushState();
     }
+    await pullAccountStateFromServer().catch(() => undefined);
+    await syncAccountStateToServer();
     serviceWorkerRegistration?.update().catch(() => undefined);
   });
 
@@ -2291,6 +2846,11 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('accountLoginForm')?.addEventListener('submit', handleAccountLogin);
   document.getElementById('accountRegisterForm')?.addEventListener('submit', handleAccountRegister);
   document.getElementById('accountLogoutButton')?.addEventListener('click', handleAccountLogout);
+  document.getElementById('accountRestoreButton')?.addEventListener('click', async () => {
+    await pullAccountStateFromServer();
+    updateAccountSyncStatusLabel();
+    trackEvent('account_state_restored');
+  });
   document.getElementById('exportPdfButton')?.addEventListener('click', exportProgressionPdf);
   firstLaunchCreateAccountBtn?.addEventListener('click', handleFirstLaunchCreateAccount);
   firstLaunchGuestBtn?.addEventListener('click', handleFirstLaunchGuest);

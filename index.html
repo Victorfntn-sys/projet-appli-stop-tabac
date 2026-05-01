@@ -757,8 +757,10 @@ strong {
       <button id="calculateButton" type="button">Calculer les économies</button>
       <div class="tracking-actions">
         <button id="pauseToggleButton" type="button" class="secondary-button">Mettre en pause</button>
+        <button id="relapseButton" type="button" class="ghost-button relapse-button">J'ai craqué aujourd'hui</button>
       </div>
       <p id="trackingStatus" class="tracking-status">Suivi actif.</p>
+      <p id="relapseStatus" class="field-note" aria-live="polite"></p>
       <div class="notification-note">
         <label class="switch" for="notificationToggle">
           <input id="notificationToggle" type="checkbox" />
@@ -850,6 +852,37 @@ strong {
                 </div>
               </div>
             </div>
+
+              <div class="savings-pot-panel">
+                <div class="savings-pot-head">
+                  <span class="goal-panel-title">Cagnotte réelle mise de côté</span>
+                  <strong id="realSavingsAmount">0,00 €</strong>
+                </div>
+                <div class="input-group">
+                  <input id="savingsDepositAmount" type="text" inputmode="decimal" value="20,00" aria-label="Montant à déposer" />
+                  <span class="input-prefix">€</span>
+                </div>
+                <div class="tracking-actions">
+                  <button id="addSavingsDepositButton" type="button" class="secondary-button">Ajouter à la cagnotte</button>
+                </div>
+                <p id="savingsPotStatus" class="field-note" aria-live="polite">Aucun dépôt pour le moment.</p>
+              </div>
+
+              <div class="financial-milestone-panel">
+                <div class="goal-panel-row">
+                  <span>Prochain palier financier</span>
+                  <strong id="nextFinancialMilestone">-</strong>
+                </div>
+                <p id="financialMilestoneHint" class="field-note">Définissez un objectif pour activer des paliers intelligents.</p>
+              </div>
+
+              <div class="trend-panel">
+                <div class="goal-panel-row">
+                  <span>Tendance économies</span>
+                  <strong id="trendSavedMoney">7j: 0,00 € · 30j: 0,00 €</strong>
+                </div>
+                <p id="trendCigarettes" class="field-note">Cigarettes évitées · 7j: 0 · 30j: 0</p>
+              </div>
           </div>
           <div class="chart-container has-projection">
             <div id="savingsProjection" class="savings-projection" aria-label="Progression sans tabac"></div>
@@ -873,10 +906,51 @@ strong {
       <div id="cravingTimer" class="craving-timer">03:00</div>
       <p id="cravingStatus" class="craving-status">Prêt à démarrer une session anti-craving.</p>
       <div id="cravingTip" class="craving-tip">Astuce: bois un verre d'eau lentement et respire profondément 4 fois.</div>
+      <div class="craving-plan">
+        <h3>Mon plan anti-craquage (3 actions)</h3>
+        <div class="onboarding-grid">
+          <div>
+            <label for="cravingAction1">Action 1</label>
+            <input id="cravingAction1" type="text" placeholder="Ex: boire un verre d'eau" />
+          </div>
+          <div>
+            <label for="cravingAction2">Action 2</label>
+            <input id="cravingAction2" type="text" placeholder="Ex: marcher 3 minutes" />
+          </div>
+          <div>
+            <label for="cravingAction3">Action 3</label>
+            <input id="cravingAction3" type="text" placeholder="Ex: respirer 4-6" />
+          </div>
+        </div>
+        <p class="field-note">Ces actions sont proposées en priorité pendant le mode urgence.</p>
+      </div>
       <div class="craving-actions">
         <button id="startCravingButton" type="button">Démarrer 3 minutes</button>
         <button id="cravingDoneButton" type="button" class="secondary-button" hidden>J'ai tenu, bravo</button>
       </div>
+    </section>
+
+    <section class="card wellbeing-card" aria-live="polite">
+      <h2>Suivi santé hebdomadaire</h2>
+      <p class="field-note">Évaluez votre semaine pour voir des preuves concrètes de progression.</p>
+      <div class="onboarding-grid">
+        <div>
+          <label for="wellbeingEnergy">Énergie (0-10)</label>
+          <input id="wellbeingEnergy" type="number" min="0" max="10" value="6" />
+        </div>
+        <div>
+          <label for="wellbeingBreath">Souffle (0-10)</label>
+          <input id="wellbeingBreath" type="number" min="0" max="10" value="6" />
+        </div>
+        <div>
+          <label for="wellbeingSleep">Sommeil (0-10)</label>
+          <input id="wellbeingSleep" type="number" min="0" max="10" value="6" />
+        </div>
+      </div>
+      <div class="tracking-actions">
+        <button id="saveWellbeingButton" type="button" class="secondary-button">Enregistrer mon ressenti de la semaine</button>
+      </div>
+      <p id="wellbeingStatus" class="field-note" aria-live="polite">Aucune auto-évaluation enregistrée.</p>
     </section>
 
     <div id="badgesModal" class="badge-modal" aria-hidden="true" role="dialog" aria-modal="true">
@@ -1008,6 +1082,14 @@ strong {
             <label for="onboardingQuitDate">Date d'arrêt</label>
             <input id="onboardingQuitDate" type="date" />
           </div>
+          <div>
+            <label for="onboardingGoalName">Objectif</label>
+            <input id="onboardingGoalName" type="text" placeholder="Ex: Week-end détente" />
+          </div>
+          <div>
+            <label for="onboardingGoalAmount">Montant objectif (€)</label>
+            <input id="onboardingGoalAmount" type="text" inputmode="decimal" value="500,00" />
+          </div>
         </div>
       </section>
 
@@ -1018,6 +1100,23 @@ strong {
           <input id="onboardingNotificationOptIn" type="checkbox" checked />
           <span>Activer les notifications de motivation et de progression</span>
         </label>
+        <div class="onboarding-grid">
+          <div>
+            <label for="onboardingNotificationFrequency">Fréquence</label>
+            <select id="onboardingNotificationFrequency">
+              <option value="daily">Tous les jours</option>
+              <option value="weekdays">Jours ouvrés</option>
+              <option value="weekly" selected>Une fois par semaine</option>
+            </select>
+          </div>
+          <div>
+            <label for="onboardingNotificationMode">Mode</label>
+            <select id="onboardingNotificationMode">
+              <option value="progress">Progression</option>
+              <option value="save" selected>Mettre de côté</option>
+            </select>
+          </div>
+        </div>
         <p class="field-note">Tu pourras les désactiver à tout moment dans l'application.</p>
       </section>
 
@@ -1045,6 +1144,8 @@ strong {
         <p class="account-email-label">Connecté en tant que</p>
         <p id="accountEmailLabel" class="account-email-value"></p>
         <p class="account-sync-info">Vos données sont synchronisées sur tous vos appareils.</p>
+        <p id="accountSyncStatus" class="field-note" aria-live="polite">Dernière synchro : -</p>
+        <button id="accountRestoreButton" class="secondary-button" type="button">Restaurer depuis le cloud</button>
         <button id="accountLogoutButton" class="ghost-button account-logout-btn" type="button">Se déconnecter</button>
       </div>
 

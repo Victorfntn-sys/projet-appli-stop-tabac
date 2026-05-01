@@ -371,6 +371,12 @@ button.is-loading::after {
   gap: 10px;
 }
 
+.relapse-button {
+  width: auto;
+  margin-top: 0;
+  font-size: 0.84rem;
+}
+
 .secondary-button {
   margin-top: 0;
   width: 100%;
@@ -558,6 +564,47 @@ button.is-loading::after {
   background: linear-gradient(90deg, #2f7cff, #16a34a);
   border-radius: 999px;
   transition: width 0.4s ease;
+}
+
+.savings-pot-panel,
+.financial-milestone-panel,
+.trend-panel {
+  margin-top: 14px;
+  border: 1px solid rgba(29, 143, 132, 0.18);
+  border-radius: 14px;
+  padding: 12px;
+  background: #f9fffd;
+}
+
+.savings-pot-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.savings-pot-head strong {
+  min-width: 0;
+  font-size: 1.1rem;
+  color: var(--primary-dark);
+}
+
+.craving-plan {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px dashed #bcded8;
+  border-radius: 14px;
+  background: #f7fcfb;
+}
+
+.craving-plan h3 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+}
+
+.wellbeing-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f5fbff 100%);
 }
 
 .badges-panel {
@@ -1235,6 +1282,10 @@ strong {
     flex-direction: column;
   }
 
+  .relapse-button {
+    width: 100%;
+  }
+
   .secondary-button,
   .tracking-actions .secondary-button {
     width: 100%;
@@ -1264,6 +1315,22 @@ strong {
     width: 100%;
     max-width: 460px;
     padding: 20px 16px;
+  }
+
+  .savings-pot-panel,
+  .financial-milestone-panel,
+  .trend-panel,
+  .craving-plan,
+  .wellbeing-card {
+    padding: 10px;
+  }
+
+  .savings-pot-head {
+    flex-wrap: wrap;
+  }
+
+  .savings-pot-head strong {
+    font-size: 1rem;
   }
 }
 
@@ -1372,6 +1439,36 @@ strong {
 
   .launch-ad-slot {
     min-height: 160px;
+  }
+
+  .goal-panel,
+  .savings-pot-panel,
+  .financial-milestone-panel,
+  .trend-panel,
+  .craving-plan,
+  .wellbeing-card {
+    border-radius: 14px;
+    padding: 10px;
+  }
+
+  .savings-pot-head {
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .goal-panel-row {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  #savingsDepositAmount,
+  #wellbeingEnergy,
+  #wellbeingBreath,
+  #wellbeingSleep,
+  #cravingAction1,
+  #cravingAction2,
+  #cravingAction3 {
+    min-height: 42px;
   }
 
   .links-card ul {
