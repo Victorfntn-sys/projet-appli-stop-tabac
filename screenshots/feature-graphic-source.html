@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Stop Tabac Feature Graphic</title>
+  <style>
+    :root {
+      --teal: #1e9f97;
+      --teal-dark: #0d6969;
+      --mint: #e9f7f4;
+      --cream: #fbfdfc;
+      --ink: #153245;
+      --soft: #6b8792;
+      --line: rgba(30, 159, 151, 0.18);
+      --card-shadow: 0 30px 60px rgba(9, 53, 71, 0.18);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      width: 1024px;
+      height: 500px;
+      overflow: hidden;
+    }
+
+    body {
+      display: block;
+      background:
+        radial-gradient(circle at top left, rgba(30, 159, 151, 0.18), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(80, 157, 255, 0.16), transparent 28%),
+        linear-gradient(135deg, #f3fbf8 0%, #eef6fb 100%);
+      font-family: Georgia, "Times New Roman", serif;
+      color: var(--ink);
+    }
+
+    .artboard {
+      width: 1024px;
+      height: 500px;
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 85% 20%, rgba(34, 174, 167, 0.20), transparent 18%),
+        radial-gradient(circle at 12% 76%, rgba(92, 175, 255, 0.16), transparent 22%),
+        linear-gradient(135deg, #f8fffd 0%, #f2faf8 48%, #eef6fb 100%);
+      border-radius: 28px;
+      border: 1px solid rgba(30, 159, 151, 0.16);
+      box-shadow: 0 35px 90px rgba(6, 36, 51, 0.18);
+    }
+
+    .badge {
+      position: absolute;
+      top: 34px;
+      left: 38px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.78);
+      border: 1px solid rgba(30, 159, 151, 0.22);
+      backdrop-filter: blur(12px);
+      font-family: Arial, sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--teal-dark);
+      text-transform: uppercase;
+    }
+
+    .badge img {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+    }
+
+    .content {
+      position: absolute;
+      inset: 92px 36px 30px 44px;
+      display: grid;
+      grid-template-columns: 1.05fr 1fr;
+      gap: 8px;
+    }
+
+    .copy {
+      padding-top: 8px;
+      position: relative;
+      z-index: 2;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 440px;
+      font-size: 64px;
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+    }
+
+    .lead {
+      margin: 20px 0 0;
+      max-width: 430px;
+      font-family: Arial, sans-serif;
+      font-size: 22px;
+      line-height: 1.35;
+      color: #2a5565;
+    }
+
+    .stats {
+      margin-top: 28px;
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      min-width: 148px;
+      padding: 16px 18px;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid var(--line);
+      box-shadow: 0 12px 30px rgba(14, 58, 77, 0.08);
+    }
+
+    .stat strong {
+      display: block;
+      font-family: Arial, sans-serif;
+      font-size: 28px;
+      line-height: 1;
+      color: var(--teal-dark);
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 8px;
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--soft);
+    }
+
+    .points {
+      margin: 28px 0 0;
+      padding: 0;
+      list-style: none;
+      font-family: Arial, sans-serif;
+      font-size: 19px;
+      line-height: 1.5;
+      color: #234a59;
+    }
+
+    .points li {
+      position: relative;
+      padding-left: 26px;
+      margin-bottom: 10px;
+    }
+
+    .points li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 10px;
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #19a69d, #76d8bf);
+      box-shadow: 0 0 0 5px rgba(25, 166, 157, 0.14);
+    }
+
+    .phones {
+      position: relative;
+      z-index: 1;
+    }
+
+    .phone {
+      position: absolute;
+      width: 210px;
+      border-radius: 28px;
+      overflow: hidden;
+      background: #ffffff;
+      border: 10px solid #17313c;
+      box-shadow: var(--card-shadow);
+    }
+
+    .phone::before {
+      content: "";
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      width: 74px;
+      height: 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      transform: translateX(-50%);
+      z-index: 3;
+    }
+
+    .phone img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .phone-a {
+      right: 280px;
+      top: 88px;
+      transform: rotate(-9deg);
+    }
+
+    .phone-b {
+      right: 112px;
+      top: 28px;
+      width: 232px;
+      transform: rotate(4deg);
+      z-index: 3;
+    }
+
+    .phone-c {
+      right: 0;
+      top: 142px;
+      transform: rotate(11deg);
+    }
+
+    .footer-note {
+      position: absolute;
+      left: 46px;
+      bottom: 24px;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      color: #54717b;
+      letter-spacing: 0.02em;
+    }
+  </style>
+</head>
+<body>
+  <div class="artboard" id="artboard">
+    <div class="badge">
+      <img src="../icon-192.png" alt="Stop Tabac" />
+      Stop Tabac
+    </div>
+
+    <div class="content">
+      <section class="copy">
+        <h1>Arreter de fumer,<br />voir ses gains.</h1>
+        <p class="lead">Suivi des economies, objectif d'epargne, mode urgence et progression concrete dans une app claire et motivante.</p>
+
+        <div class="stats">
+          <div class="stat">
+            <strong>282,75 EUR</strong>
+            <span>Economises</span>
+          </div>
+          <div class="stat">
+            <strong>29 jours</strong>
+            <span>Sans tabac</span>
+          </div>
+          <div class="stat">
+            <strong>12 sessions</strong>
+            <span>Anti-craving</span>
+          </div>
+        </div>
+
+        <ul class="points">
+          <li>Objectifs financiers motivants</li>
+          <li>Rappels utiles sans surcharge</li>
+          <li>Suivi sante et rechutes sans culpabilite</li>
+        </ul>
+      </section>
+
+      <section class="phones" aria-hidden="true">
+        <div class="phone phone-a">
+          <img src="./02-results-progress.png" alt="Progression" />
+        </div>
+        <div class="phone phone-b">
+          <img src="./03-craving-mode.png" alt="Mode urgence" />
+        </div>
+        <div class="phone phone-c">
+          <img src="./05-badges-modal.png" alt="Badges" />
+        </div>
+      </section>
+    </div>
+
+    <div class="footer-note">Calculateur d'economies - arret du tabac</div>
+  </div>
+</body>
+</html>
