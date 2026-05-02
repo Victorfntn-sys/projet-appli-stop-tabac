@@ -49,8 +49,7 @@ Le script va automatiquement:
 #### 🐧 Sur Linux/Mac
 
 ```bash
-npm run twa:update
-npm run twa:build
+./gradlew bundleRelease
 ```
 
 ### Étape 3️⃣ : Importe dans le Play Store
@@ -62,6 +61,90 @@ Une fois le `.aab` généré :
 3. Importe le fichier `.aab` en "Internal Testing"
 4. Complète la fiche store
 5. Lance une version de test d'abord
+
+### Checklist Play Console ecran par ecran
+
+1. `All apps` -> `Create app`
+  - App name : `Stop Tabac - Calcul d'economies`
+  - Default language : `French (France)`
+  - App or game : `App`
+  - Free or paid : `Free`
+  - Declarations : coche les confirmations demandees
+
+2. `Dashboard`
+  - Verifie les taches bloquees affichees par Google
+  - Commence par `Set up your app` puis `Grow your app`
+
+3. `Set up your app` -> `App access`
+  - Choisis `All functionality is available without special access` si aucun compte n'est requis
+  - Si Google demande un acces de demo, fournis un compte test separatement
+
+4. `Set up your app` -> `Ads`
+  - Choisis `No` si l'app n'affiche pas de publicites
+
+5. `Set up your app` -> `Content rating`
+  - Lance le questionnaire
+  - Pour cette app, reste coherent avec un usage `Sante / bien-etre` sans contenu sensible
+  - Soumets puis recupere la classification proposee
+
+6. `Set up your app` -> `Target audience`
+  - Selectionne plutot `18 and over`
+  - L'app traite d'arret du tabac et de suivi personnel, pas d'un produit pour enfants
+
+7. `Set up your app` -> `News apps`
+  - Choisis `No`
+
+8. `Grow your app` -> `Store presence` -> `Main store listing`
+  - App name : `Stop Tabac - Calcul d'economies`
+  - Short description : `Suivi de l'arret du tabac avec economies, objectifs et rappels.`
+  - Full description : reprends la version de `PLAYSTORE_DEPLOYMENT.md`
+  - App icon : utilise `icon-512.png`
+  - Phone screenshots : ajoute 2 a 8 captures propres de l'app
+  - Feature graphic : ajoute une image `1024 x 500` si possible
+
+9. `Grow your app` -> `Store settings`
+  - App category : `Health & Fitness` ou `Productivity`
+  - Tags : choisis des tags proches de `habit tracking`, `health`, `wellbeing`
+  - Contact details : ajoute au minimum un email de contact
+  - Privacy policy : renseigne l'URL publique de `privacy.html`
+
+10. `Monetize with Play` -> `App content`
+  - Verifie que toutes les declarations sont marquees en vert
+  - Si une section reste rouge, ouvre-la depuis ce menu plutot que depuis le dashboard
+
+11. `Test and release` -> `Testing` -> `Internal testing`
+  - Cree une release
+  - Importe `app/build/outputs/bundle/release/app-release.aab`
+  - Ajoute des notes de version simples
+  - Cree une liste de testeurs ou une liste email
+
+12. `Testing` -> `Internal testing` -> `Testers`
+  - Ajoute ton adresse Gmail et celles des testeurs Android
+  - Sauvegarde puis copie le lien d'opt-in
+
+13. Installer le build test
+  - Ouvre le lien d'opt-in sur le telephone Android
+  - Accepte le test
+  - Installe l'app depuis le Play Store
+  - Verifie lancement, notifications, synchro, asset links, ecran principal
+
+14. `Release` -> `Production`
+  - Cree la release production quand le test interne est bon
+  - Reutilise le meme AAB ou un AAB incremente si tu as corrige quelque chose
+
+15. `Publishing overview`
+  - Controle les avertissements finaux
+  - Clique `Send for review` puis `Publish`
+
+### A preparer avant d'ouvrir la console
+
+- Le fichier AAB : `app/build/outputs/bundle/release/app-release.aab`
+- L'URL de politique de confidentialite
+- 2 a 8 screenshots Android
+- 1 email de contact public
+- La description courte et longue
+- Le package Android : `com.victorfntn.stoptabac`
+- Le fingerprint SHA-256 deja configure en production
 
 ---
 
@@ -97,7 +180,7 @@ Ouvre `twa-manifest.json` et modifie:
 | "Java not found" | Le script l'installe auto. Redémarre après. |
 | "npm not found" | Installe Node.js depuis https://nodejs.org |
 | "Build failed" | Cherche le message d'erreur. Généralement un problème d'URL ou de fichiers manquants. |
-| "AAB not found" | Regarde dans `android/build/outputs/bundle/release/` |
+| "AAB not found" | Regarde dans `app/build/outputs/bundle/release/` |
 | "assetlinks.json error" | Redéploie ton backend et vérifie les variables env `TWA_*` |
 
 ---
