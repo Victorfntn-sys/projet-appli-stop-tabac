@@ -1,7 +1,14 @@
 node_modules/
 .env
 .env.production
+.gradle/
+build/
+app/build/
+local.properties
+*.keystore
+*.jks
 data/*.json
 data/*.csv
 data/*.xlsx
 data/user-backups.json
+data/

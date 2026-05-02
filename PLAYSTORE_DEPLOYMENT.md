@@ -67,10 +67,10 @@ Quand Bubblewrap demande des choix:
 #### 4. Construire l'app
 
 ```powershell
-npm run twa:build
+.\gradlew.bat bundleRelease
 ```
 
-Le fichier généré sera dans un sous-dossier `android/build/outputs/bundle/release/app-release.aab`
+Le fichier généré sera dans `app/build/outputs/bundle/release/app-release.aab`
 
 ---
 
@@ -218,6 +218,7 @@ L'app demande :
 
 - **Erreur "assetlinks.json returned HTTP 404"** → Redéploie le backend `server.js` et vérifie les variables VAPID
 - **Erreur de signature** → Régénère la clé ou utilise Gradle directement
+- **Bubblewrap échoue avec `Cannot read properties of undefined (reading 'path')`** → utilise directement `./gradlew.bat bundleRelease`, vérifie `local.properties` et pointe `sdk.dir` vers ton SDK Android
 - **Lenteurs du téléchargement JDK** → Installe OpenJDK manuellement via Chocolatey
 
 ---
