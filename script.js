@@ -2508,7 +2508,7 @@ async function handleAccountRegister(event) {
       if (errorEl) {
         if (data.error === 'email-already-used') errorEl.textContent = 'Cet email est déjà utilisé.';
         else if (data.error === 'invalid-email') errorEl.textContent = 'Email invalide.';
-        else if (data.error === 'invalid-password') errorEl.textContent = 'Le mot de passe doit contenir au moins 8 caractères.';
+        else if (data.error === 'invalid-password') errorEl.textContent = 'Le mot de passe doit contenir au moins 8 caractères, une lettre et un chiffre.';
         else errorEl.textContent = 'Erreur lors de la création du compte.';
       }
       return;

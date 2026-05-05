@@ -1,11 +1,65 @@
 {
+  "id": "./index.html",
   "name": "Calculateur d'economies",
   "short_name": "Economies",
   "description": "Suivi de l'arret du tabac avec objectifs, badges et notifications.",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#f4f8fb",
-  "theme_color": "#2f7cff",
+  "background_color": "#f2fbf8",
+  "theme_color": "#1d8f84",
+  "categories": ["health", "lifestyle"],
+  "screenshots": [
+    {
+      "src": "./screenshots/01-overview-home.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Tableau de bord principal"
+    },
+    {
+      "src": "./screenshots/02-results-progress.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Progression et économies"
+    },
+    {
+      "src": "./screenshots/03-craving-mode.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Mode anti-envie"
+    },
+    {
+      "src": "./screenshots/04-wellbeing-weekly.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Suivi bien-être hebdomadaire"
+    },
+    {
+      "src": "./screenshots/05-badges-modal.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Badges et récompenses"
+    },
+    {
+      "src": "./screenshots/tablet-7inch-home-1920x1200.png",
+      "sizes": "1920x1200",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Tableau de bord tablette"
+    },
+    {
+      "src": "./screenshots/tablet-7inch-results-1920x1200.png",
+      "sizes": "1920x1200",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Résultats tablette"
+    }
+  ],
   "icons": [
     {
       "src": "./icon-192.png",

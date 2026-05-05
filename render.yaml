@@ -2,7 +2,7 @@ services:
   - type: web
     name: calculateur-economies-tabac
     runtime: node
-    plan: free
+    plan: starter
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /healthz
@@ -25,6 +25,10 @@ services:
       - key: ADMIN_API_KEY
         sync: false
       - key: EXPORT_ADMIN_KEY
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: ALLOWED_ORIGINS
         sync: false
       - key: FEEDBACK_WEBHOOK_URL
         sync: false

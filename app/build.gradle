@@ -57,8 +57,8 @@ android {
         applicationId "com.victorfntn.stoptabac"
         minSdkVersion 21
         targetSdkVersion 35
-        versionCode 3
-        versionName "1.0.0"
+        versionCode 5
+        versionName "1.0.2"
 
         // The name for the application
         resValue "string", "appName", twaManifest.name
@@ -150,9 +150,21 @@ android {
 
         
     }
+    signingConfigs {
+        release {
+            def localProps = new Properties()
+            def localPropsFile = rootProject.file('local.properties')
+            if (localPropsFile.exists()) { localPropsFile.withInputStream { localProps.load(it) } }
+            storeFile file(localProps['KEYSTORE_PATH'] ?: '../release-keystore.jks')
+            storePassword localProps['KEYSTORE_PASSWORD'] ?: ''
+            keyAlias localProps['KEY_ALIAS'] ?: 'release-key'
+            keyPassword localProps['KEY_PASSWORD'] ?: ''
+        }
+    }
     buildTypes {
         release {
             minifyEnabled true
+            signingConfig signingConfigs.release
         }
     }
     compileOptions {

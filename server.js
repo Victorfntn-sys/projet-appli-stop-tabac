@@ -18,6 +18,7 @@ const publicStaticFiles = new Set([
   '/admin.html',
   '/admin.js',
   '/privacy.html',
+  '/mentions-legales.html',
   '/styles.css',
   '/script.js',
   '/sw.js',
@@ -40,6 +41,10 @@ const exportAdminKey = process.env.EXPORT_ADMIN_KEY || '';
 const adminApiKey = process.env.ADMIN_API_KEY || exportAdminKey || '';
 const twaPackageName = process.env.TWA_PACKAGE_NAME || 'com.victorfntn.stoptabac';
 const twaSha256Fingerprints = (process.env.TWA_SHA256_CERT_FINGERPRINTS || '')
+  .split(',')
+  .map(value => value.trim())
+  .filter(Boolean);
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
   .split(',')
   .map(value => value.trim())
   .filter(Boolean);
@@ -184,7 +189,14 @@ async function readUsers() {
 
 async function readSessions() {
   const data = await readJsonDataFile(sessionsFile, []);
-  return Array.isArray(data) ? data : [];
+  const sessions = Array.isArray(data) ? data : [];
+  const now = Date.now();
+  const active = sessions.filter(s => s.expiresAt > now);
+  // Persist cleanup if expired sessions were found
+  if (active.length < sessions.length) {
+    await writeJsonDataFile(sessionsFile, active).catch(() => undefined);
+  }
+  return active;
 }
 
 async function readAccountStates() {
@@ -252,6 +264,29 @@ function requireUserAuth(req, res, next) {
 }
 
 app.use(express.json({ limit: '200kb' }));
+
+// CORS — only allow listed origins (if configured) or same-origin requests
+app.use((req, res, next) => {
+  const origin = typeof req.headers.origin === 'string' ? req.headers.origin : '';
+  if (origin) {
+    if (allowedOrigins.length > 0 && allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-admin-key');
+      res.setHeader('Access-Control-Max-Age', '86400');
+    } else if (allowedOrigins.length === 0) {
+      // No ALLOWED_ORIGINS configured: reject all cross-origin requests
+      res.setHeader('Access-Control-Allow-Origin', '');
+    }
+  }
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
+  next();
+});
+
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -275,6 +310,7 @@ app.use((req, res, next) => {
 
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    res.setHeader('Content-Security-Policy', res.getHeader('Content-Security-Policy') + '; upgrade-insecure-requests');
   }
 
   next();
@@ -296,6 +332,9 @@ app.use(['/api/push/subscribe', '/api/push/state', '/api/push/unsubscribe'], pus
 app.use('/api/user-state', userStateLimiter);
 app.use('/api/feedback', feedbackLimiter);
 app.use(['/api/admin', '/api/analytics/export', '/api/user-state/export-all', '/api/user-state/export-all.xlsx', '/api/push/run-now'], adminLimiter);
+app.use('/healthz', createRateLimiter({ windowMs: 60 * 1000, maxRequests: 60 }));
+app.use(['/api/auth/me', '/api/auth/logout'], authLimiter);
+app.use(['/api/account/state'], userStateLimiter);
 
 async function ensureDataFile() {
   await fs.mkdir(dataDir, { recursive: true });
@@ -873,6 +912,26 @@ async function sendScheduledNotifications() {
   await writeSubscriptions(nextSubscriptions);
 }
 
+async function readAndroidReleaseVersion() {
+  try {
+    const gradlePath = path.join(__dirname, 'app', 'build.gradle');
+    const raw = await fs.readFile(gradlePath, 'utf8');
+
+    const versionCodeMatch = raw.match(/^\s*versionCode\s+(\d+)\s*$/m);
+    const versionNameMatch = raw.match(/^\s*versionName\s+"([^"]+)"\s*$/m);
+
+    return {
+      versionCode: versionCodeMatch ? Number.parseInt(versionCodeMatch[1], 10) : null,
+      versionName: versionNameMatch ? versionNameMatch[1] : null,
+    };
+  } catch {
+    return {
+      versionCode: null,
+      versionName: null,
+    };
+  }
+}
+
 app.get('/healthz', async (req, res) => {
   try {
     await ensureDataFile();
@@ -888,6 +947,17 @@ app.get('/healthz', async (req, res) => {
 
 app.get('/api/admin/status', requireAdminAuth, async (req, res) => {
   const isProduction = process.env.NODE_ENV === 'production';
+  const androidRelease = await readAndroidReleaseVersion();
+
+  const deployment = {
+    provider: process.env.RENDER ? 'render' : 'unknown',
+    serviceId: process.env.RENDER_SERVICE_ID || null,
+    instanceId: process.env.RENDER_INSTANCE_ID || null,
+    gitCommit: process.env.RENDER_GIT_COMMIT || null,
+    gitBranch: process.env.RENDER_GIT_BRANCH || null,
+    deployedAt: process.env.RENDER_DEPLOYMENT_TIMESTAMP || null,
+  };
+
   res.json({
     ok: true,
     environment: process.env.NODE_ENV || 'development',
@@ -895,6 +965,8 @@ app.get('/api/admin/status', requireAdminAuth, async (req, res) => {
     vapidConfigured: Boolean(vapidPublicKey && vapidPrivateKey),
     adminConfigured: Boolean(adminApiKey),
     assetLinksConfigured: Boolean(twaPackageName && twaSha256Fingerprints.length > 0),
+    androidRelease,
+    deployment,
     timestamp: new Date().toISOString(),
   });
 });
@@ -950,9 +1022,28 @@ app.get('/api/push/public-key', (req, res) => {
   res.json({ publicKey: vapidPublicKey });
 });
 
+function isValidPushEndpoint(endpoint) {
+  try {
+    const url = new URL(endpoint);
+    if (url.protocol !== 'https:') return false;
+    const hostname = url.hostname;
+    // Block private/loopback network ranges (SSRF protection)
+    if (hostname === 'localhost') return false;
+    if (/^127\./.test(hostname)) return false;
+    if (/^10\./.test(hostname)) return false;
+    if (/^192\.168\./.test(hostname)) return false;
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(hostname)) return false;
+    if (/^::1$/.test(hostname)) return false;
+    if (/^0\./.test(hostname)) return false;
+    return hostname.includes('.');
+  } catch {
+    return false;
+  }
+}
+
 app.post('/api/push/subscribe', async (req, res) => {
   const { subscription, userState, lastPausePushAt, lastNotifiedPackCount } = req.body || {};
-  if (!subscription?.endpoint) {
+  if (!subscription?.endpoint || !isValidPushEndpoint(subscription.endpoint)) {
     res.status(400).json({ error: 'invalid-subscription' });
     return;
   }
@@ -1187,6 +1278,11 @@ app.post('/api/auth/register', async (req, res) => {
       res.status(400).json({ error: 'invalid-password' });
       return;
     }
+    // Require at least one letter and one digit
+    if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      res.status(400).json({ error: 'invalid-password' });
+      return;
+    }
     const users = await readUsers();
     if (users.some(u => u.email === email)) {
       res.status(409).json({ error: 'email-already-used' });
@@ -1405,6 +1501,14 @@ Promise.all([ensureDataFile(), ensureFeedbackFile(), ensureUserStatesCsvFile(), 
   setInterval(() => {
     sendScheduledNotifications().catch(error => console.error('Scheduled push failed', error));
   }, 60 * 1000);
+
+  // Keep-alive ping to prevent Render free-tier sleep (every 10 min)
+  const renderUrl = process.env.RENDER_EXTERNAL_URL || '';
+  if (renderUrl) {
+    setInterval(() => {
+      fetch(`${renderUrl}/healthz`).catch(() => undefined);
+    }, 10 * 60 * 1000);
+  }
 }).catch(error => {
   console.error('Server start failed', error);
   process.exit(1);

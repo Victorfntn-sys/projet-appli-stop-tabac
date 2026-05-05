@@ -18,6 +18,8 @@
     "check:playstore": "node scripts/check-playstore-ready.js",
     "check:playstore:strict": "node scripts/check-playstore-ready.js --strict",
     "generate:vapid": "node -e \"const webpush=require('web-push');console.log(JSON.stringify(webpush.generateVAPIDKeys(), null, 2));\"",
+    "bump-sw": "node scripts/bump-sw-version.js",
+    "test:unit": "node scripts/test-unit.js",
     "twa:doctor": "bubblewrap doctor",
     "twa:update": "bubblewrap update",
     "twa:build": "bubblewrap build"

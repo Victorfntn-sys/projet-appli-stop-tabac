@@ -1,9 +1,34 @@
 const { spawn } = require('child_process');
+const net = require('net');
 
 const appRoot = require('path').resolve(__dirname, '..');
-const port = Number(process.env.SECURITY_CHECK_PORT || 3310);
-const baseUrl = `http://127.0.0.1:${port}`;
+const preferredPort = Number(process.env.SECURITY_CHECK_PORT || 3310);
+let selectedPort = preferredPort;
 const adminKey = (process.env.ADMIN_API_KEY || 'security-check-admin-key').trim();
+
+function getBaseUrl() {
+  return `http://127.0.0.1:${selectedPort}`;
+}
+
+function findAvailablePort(startPort) {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+
+    server.unref();
+    server.on('error', reject);
+    server.listen(startPort, '127.0.0.1', () => {
+      const address = server.address();
+      const openPort = typeof address === 'object' && address ? address.port : startPort;
+      server.close(error => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(openPort);
+      });
+    });
+  });
+}
 
 function pass(label) {
   console.log(`PASS ${label}`);
@@ -21,7 +46,7 @@ function sleep(ms) {
 async function waitForServerReady(maxAttempts = 40) {
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     try {
-      const response = await fetch(`${baseUrl}/healthz`);
+      const response = await fetch(`${getBaseUrl()}/healthz`);
       if (response.ok) {
         return true;
       }
@@ -34,7 +59,7 @@ async function waitForServerReady(maxAttempts = 40) {
 }
 
 async function request(pathname, options = {}) {
-  const response = await fetch(`${baseUrl}${pathname}`, options);
+  const response = await fetch(`${getBaseUrl()}${pathname}`, options);
   const bodyText = await response.text();
   let json = null;
   try {
@@ -140,11 +165,13 @@ async function main() {
   console.log('Security checks (local)');
   console.log('-----------------------');
 
+  selectedPort = await findAvailablePort(preferredPort);
+
   const serverProcess = spawn('node', ['server.js'], {
     cwd: appRoot,
     env: {
       ...process.env,
-      PORT: String(port),
+      PORT: String(selectedPort),
       ADMIN_API_KEY: adminKey,
       VAPID_SUBJECT: '',
       VAPID_PUBLIC_KEY: '',

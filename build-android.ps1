@@ -7,7 +7,7 @@ Write-Host " Stop Tabac Application" -ForegroundColor Cyan
 Write-Host "===============================================" -ForegroundColor Cyan
 Write-Host ""
 
-$projectPath = "c:\Users\victo\OneDrive\Bureau\projet appli"
+$projectPath = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 function Test-Command {
     param([string]$Command)
@@ -20,7 +20,10 @@ if (-not (Test-Command java)) {
     Write-Host "Java is not installed. Install OpenJDK 17 and rerun this script." -ForegroundColor Red
     exit 1
 }
-java -version 2>&1 | Select-Object -First 1
+$javaVersion = cmd /c "java -version" 2>&1 | Select-Object -First 1
+if ($javaVersion) {
+    Write-Host $javaVersion
+}
 
 Write-Host "Checking Node.js..." -ForegroundColor Yellow
 if (-not (Test-Command node)) {
@@ -33,6 +36,10 @@ Write-Host "Checking Bubblewrap..." -ForegroundColor Yellow
 if (-not (Test-Command bubblewrap)) {
     Write-Host "Installing Bubblewrap CLI..." -ForegroundColor Green
     npm install -g @bubblewrap/cli@latest
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Bubblewrap installation failed." -ForegroundColor Red
+        exit 1
+    }
 }
 bubblewrap --version
 
@@ -65,12 +72,8 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-Write-Host "Running bubblewrap update (optional setup step)..." -ForegroundColor Yellow
-$updateProcess = Start-Process -FilePath "bubblewrap" -ArgumentList "update" -NoNewWindow -PassThru
-$updateProcess.WaitForExit()
-if ($updateProcess.ExitCode -ne 0) {
-    Write-Host "bubblewrap update returned non-zero. Continuing with Gradle build." -ForegroundColor Yellow
-}
+Write-Host "Skipping bubblewrap update (non-interactive build mode)." -ForegroundColor Yellow
+Write-Host "Run 'npm run twa:update' manually only when TWA metadata changes." -ForegroundColor Yellow
 
 $bubblewrapConfigPath = Join-Path $env:USERPROFILE ".bubblewrap\config.json"
 if ((Test-Path "gradlew.bat") -and (Test-Path $bubblewrapConfigPath)) {
@@ -84,18 +87,21 @@ if ((Test-Path "gradlew.bat") -and (Test-Path $bubblewrapConfigPath)) {
 
 Write-Host "Building AAB..." -ForegroundColor Cyan
 if (Test-Path "gradlew.bat") {
-    $buildProcess = Start-Process -FilePath ".\gradlew.bat" -ArgumentList "bundleRelease" -NoNewWindow -PassThru
+    & .\gradlew.bat clean bundleRelease
 } else {
-    $buildProcess = Start-Process -FilePath "npm" -ArgumentList "run twa:build" -NoNewWindow -PassThru
+    npm run twa:build
 }
-$buildProcess.WaitForExit()
-
-if ($buildProcess.ExitCode -ne 0) {
+if ($LASTEXITCODE -ne 0) {
     Write-Host "Build failed. Check errors above." -ForegroundColor Red
     exit 1
 }
 
-$aabFile = Get-ChildItem -Recurse -Filter "*.aab" -ErrorAction SilentlyContinue | Select-Object -First 1
+$preferredAabPath = Join-Path $projectPath "app\build\outputs\bundle\release\app-release.aab"
+$aabFile = if (Test-Path $preferredAabPath) {
+    Get-Item $preferredAabPath
+} else {
+    Get-ChildItem -Recurse -Filter "*.aab" -ErrorAction SilentlyContinue | Select-Object -First 1
+}
 if ($aabFile) {
     Write-Host "Build successful. AAB file:" -ForegroundColor Green
     Write-Host "$($aabFile.FullName)" -ForegroundColor Cyan

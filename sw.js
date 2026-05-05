@@ -55,7 +55,15 @@ async function cacheFirst(request) {
 
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(APP_ASSETS)).catch(() => undefined)
+    caches.open(CACHE_NAME).then(cache =>
+      Promise.all(
+        APP_ASSETS.map(asset =>
+          cache.add(asset).catch(error => {
+            console.warn('[SW] Failed to cache asset during install:', asset, error);
+          })
+        )
+      )
+    )
   );
 });
 
