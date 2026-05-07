@@ -26,6 +26,7 @@ const publicStaticFiles = new Set([
   '/admin.js',
   '/privacy.html',
   '/mentions-legales.html',
+  '/delete-account.html',
   '/styles.css',
   '/script.js',
   '/sw.js',
