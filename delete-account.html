@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Supprimer mon compte — Stop Tabac</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: linear-gradient(180deg, #f7fdfb 0%, #eefaf7 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: #1a2e2b;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+      padding: 36px 32px;
+      max-width: 440px;
+      width: 100%;
+    }
+    .logo {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .logo-icon {
+      font-size: 40px;
+      display: block;
+      margin-bottom: 8px;
+    }
+    h1 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #1a2e2b;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #5a7570;
+      font-size: 0.9rem;
+      margin-bottom: 28px;
+      line-height: 1.5;
+    }
+    .warning-box {
+      background: #fff3f3;
+      border: 1px solid #ffcece;
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 0.85rem;
+      color: #c0392b;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #2c4a45;
+      margin-bottom: 6px;
+    }
+    input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid #c5dbd7;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      color: #1a2e2b;
+      background: #f7fdfb;
+      outline: none;
+      transition: border-color 0.2s;
+      margin-bottom: 18px;
+    }
+    input:focus { border-color: #1d8f84; background: #fff; }
+    .btn-delete {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(180deg, #e05555 0%, #c0392b 100%);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn-delete:hover { opacity: 0.88; }
+    .btn-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+    .message {
+      margin-top: 18px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      display: none;
+    }
+    .message.success {
+      background: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #a5d6a7;
+    }
+    .message.error {
+      background: #fff3f3;
+      color: #c0392b;
+      border: 1px solid #ffcece;
+    }
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 20px;
+      font-size: 0.85rem;
+      color: #1d8f84;
+      text-decoration: none;
+    }
+    .back-link:hover { text-decoration: underline; }
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <span class="logo-icon">🚭</span>
+      <strong>Stop Tabac</strong>
+    </div>
+    <h1>Supprimer mon compte</h1>
+    <p class="subtitle">
+      Identifiez-vous pour confirmer la suppression définitive de votre compte et de toutes vos données.
+    </p>
+
+    <div id="formSection">
+      <div class="warning-box">
+        ⚠️ Cette action est <strong>irréversible</strong>. Toutes vos données (progrès, historique, paramètres) seront définitivement supprimées.
+      </div>
+
+      <form id="deleteForm">
+        <label for="email">Adresse e-mail</label>
+        <input type="email" id="email" name="email" autocomplete="email" required placeholder="votre@email.com" />
+
+        <label for="password">Mot de passe</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required placeholder="••••••••" />
+
+        <button type="submit" class="btn-delete" id="submitBtn">
+          Supprimer définitivement mon compte
+        </button>
+      </form>
+
+      <div class="message" id="message"></div>
+
+      <a href="/" class="back-link">← Retour à l'application</a>
+    </div>
+
+    <div id="successSection" style="display:none; text-align:center;">
+      <div style="font-size:48px; margin-bottom:16px;">✅</div>
+      <h1 style="margin-bottom:12px;">Compte supprimé</h1>
+      <p style="color:#5a7570; line-height:1.6;">
+        Votre compte et toutes vos données ont été supprimés définitivement.<br/>
+        Merci d'avoir utilisé Stop Tabac.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('deleteForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const btn = document.getElementById('submitBtn');
+      const msg = document.getElementById('message');
+
+      msg.style.display = 'none';
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Suppression en cours…';
+
+      try {
+        // Step 1: login to get token
+        const loginRes = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        if (!loginRes.ok) {
+          const data = await loginRes.json().catch(() => ({}));
+          const errMsg = data.error === 'invalid-credentials'
+            ? 'E-mail ou mot de passe incorrect.'
+            : 'Connexion impossible. Vérifiez vos identifiants.';
+          throw new Error(errMsg);
+        }
+        const { token } = await loginRes.json();
+
+        // Step 2: delete account
+        const deleteRes = await fetch('/api/auth/account', {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (!deleteRes.ok) {
+          throw new Error('La suppression a échoué. Veuillez réessayer.');
+        }
+
+        // Success
+        document.getElementById('formSection').style.display = 'none';
+        document.getElementById('successSection').style.display = 'block';
+
+      } catch (err) {
+        msg.textContent = err.message || 'Une erreur est survenue.';
+        msg.className = 'message error';
+        msg.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Supprimer définitivement mon compte';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -89,6 +89,22 @@ async function expectRateLimit(label, attempts, requestFactory) {
 }
 
 async function runChecks() {
+  const disallowedOrigin = 'https://evil.example';
+  const corsProbe = await request('/api/feedback', {
+    method: 'OPTIONS',
+    headers: {
+      Origin: disallowedOrigin,
+      'Access-Control-Request-Method': 'POST',
+      'Access-Control-Request-Headers': 'content-type',
+    },
+  });
+  const allowOriginHeader = corsProbe.response.headers.get('access-control-allow-origin') || '';
+  if (allowOriginHeader !== disallowedOrigin) {
+    pass('cross-origin origin is not allowed (csrf surface reduced)');
+  } else {
+    fail('cross-origin origin is not allowed (csrf surface reduced)', 'disallowed origin was reflected in CORS header');
+  }
+
   const staticData = await request('/data/subscriptions.json');
   if (staticData.response.status === 404) {
     pass('data files are not publicly exposed');

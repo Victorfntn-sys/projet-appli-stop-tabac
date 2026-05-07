@@ -13,6 +13,7 @@ const STORAGE_CLIENT_ID = 'stop-smoking-clientId';
 const STORAGE_IS_PREMIUM = 'stop-smoking-is-premium';
 const STORAGE_APP_OPEN_COUNT = 'stop-smoking-app-open-count';
 const STORAGE_LAST_LAUNCH_AD_AT = 'stop-smoking-last-launch-ad-at';
+const STORAGE_FORCE_LAUNCH_AD_TEST = 'stop-smoking-force-launch-ad-test';
 const STORAGE_ONBOARDING_DONE = 'stop-smoking-onboarding-done';
 const STORAGE_CRAVING_SESSION_COUNT = 'stop-smoking-craving-session-count';
 const STORAGE_NOTIFICATION_PREFS = 'stop-smoking-notification-preferences';
@@ -121,8 +122,6 @@ const saveWellbeingButton = document.getElementById('saveWellbeingButton');
 const wellbeingStatus = document.getElementById('wellbeingStatus');
 const accountSyncStatus = document.getElementById('accountSyncStatus');
 const accountRestoreButton = document.getElementById('accountRestoreButton');
-const ADMOB_APP_ID = 'ca-app-pub-4442230652158494~6410750898';
-const ADMOB_UNIT_ID = 'ca-app-pub-4442230652158494/1158424217';
 let lastPackCount = 0;
 let pauseReminderIntervalId = null;
 let pushStateSyncIntervalId = null;
@@ -709,6 +708,28 @@ function isPremiumUser() {
   }
 }
 
+function isLaunchAdDebugMode() {
+  try {
+    const params = new URLSearchParams(window.location.search || '');
+    const queryValue = params.get('ad_test');
+
+    // Convenience: persist URL flag for repeated local testing sessions.
+    if (queryValue === '1' || queryValue === 'true') {
+      localStorage.setItem(STORAGE_FORCE_LAUNCH_AD_TEST, '1');
+      return true;
+    }
+    if (queryValue === '0' || queryValue === 'false') {
+      localStorage.removeItem(STORAGE_FORCE_LAUNCH_AD_TEST);
+      return false;
+    }
+
+    const storedValue = localStorage.getItem(STORAGE_FORCE_LAUNCH_AD_TEST);
+    return storedValue === '1' || storedValue === 'true';
+  } catch {
+    return false;
+  }
+}
+
 function clearLaunchAdTimers() {
   if (launchAdAutoCloseTimeoutId) {
     clearTimeout(launchAdAutoCloseTimeoutId);
@@ -721,13 +742,13 @@ function clearLaunchAdTimers() {
 }
 
 function closeLaunchAd() {
+  document.body.style.overflow = '';
   if (!launchAdModal) {
     return;
   }
   clearLaunchAdTimers();
   launchAdModal.classList.remove('open');
   launchAdModal.setAttribute('aria-hidden', 'true');
-  document.body.style.overflow = '';
 }
 
 function saveOnboardingDone(value) {
@@ -809,12 +830,12 @@ function openFirstLaunchChoiceModal() {
 }
 
 function closeFirstLaunchChoiceModal() {
+  document.body.style.overflow = '';
   if (!firstLaunchModal) {
     return;
   }
   firstLaunchModal.classList.remove('open');
   firstLaunchModal.setAttribute('aria-hidden', 'true');
-  document.body.style.overflow = '';
 }
 
 function launchStartupFlow() {
@@ -976,6 +997,7 @@ function openOnboarding() {
 }
 
 function closeOnboarding({ completed = false } = {}) {
+  document.body.style.overflow = '';
   if (!onboardingModal) {
     return;
   }
@@ -1098,9 +1120,7 @@ function openLaunchAd() {
 
   if (launchAdSlot) {
     launchAdSlot.setAttribute('data-ad-provider', 'admob');
-    launchAdSlot.setAttribute('data-admob-app-id', ADMOB_APP_ID);
-    launchAdSlot.setAttribute('data-admob-unit-id', ADMOB_UNIT_ID);
-    launchAdSlot.textContent = `Bloc AdMob: ${ADMOB_APP_ID} / ${ADMOB_UNIT_ID}`;
+    launchAdSlot.textContent = 'Annonce en cours de chargement...';
   }
 
   saveInteger(STORAGE_LAST_LAUNCH_AD_AT, Date.now());
@@ -1131,6 +1151,9 @@ function openLaunchAd() {
 function shouldShowLaunchAdOnStartup() {
   if (!launchAdModal) {
     return false;
+  }
+  if (isLaunchAdDebugMode()) {
+    return true;
   }
   if (isPremiumUser()) {
     return false;
@@ -2401,6 +2424,10 @@ function restoreAccountState(state) {
     renderTrends();
   }
 
+  if (state.isPremium === true) {
+    localStorage.setItem(STORAGE_IS_PREMIUM, 'true');
+  }
+
   if (state.updatedAt) {
     saveLastAccountSyncAt(state.updatedAt);
     updateAccountSyncStatusLabel();
@@ -2445,6 +2472,7 @@ async function syncAccountStateToServer() {
       cravingPlan: getStoredCravingPlan(),
       wellbeingLog: getStoredWellbeingLog(),
       metricsHistory: getStoredMetricsHistory(),
+      isPremium: isPremiumUser(),
       updatedAt: new Date().toISOString(),
     };
     await fetch('/api/account/state', {

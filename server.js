@@ -8,6 +8,13 @@ const webPush = require('web-push');
 const { randomBytes, createHmac, scrypt: scryptCallback, timingSafeEqual } = require('crypto');
 const { promisify } = require('util');
 const scrypt = promisify(scryptCallback);
+const {
+  feedbackSchema,
+  userStateSchema,
+  registerSchema,
+  loginSchema,
+  createValidator,
+} = require('./validation');
 
 const app = express();
 app.disable('x-powered-by');
@@ -998,6 +1005,26 @@ app.get('/api/admin/sessions', requireAdminAuth, async (req, res) => {
   }
 });
 
+app.post('/api/admin/users/:userId/set-premium', requireAdminAuth, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const premium = req.body?.premium !== false;
+    const users = await readUsers();
+    if (!users.some(u => u.id === userId)) {
+      res.status(404).json({ error: 'user-not-found' });
+      return;
+    }
+    const states = await readAccountStates();
+    if (!states[userId]) states[userId] = {};
+    states[userId].isPremium = premium;
+    await writeJsonDataFile(accountStatesFile, states);
+    await appendAdminAudit({ action: 'set-premium', userId, premium, at: new Date().toISOString(), by: 'admin' });
+    res.json({ ok: true, userId, isPremium: premium });
+  } catch {
+    res.status(500).json({ error: 'set-premium-failed' });
+  }
+});
+
 app.get('/api/admin/feedback', requireAdminAuth, async (req, res) => {
   try {
     const data = await fs.readFile(feedbackFile, 'utf-8');
@@ -1101,34 +1128,17 @@ app.post('/api/push/run-now', requireAdminAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/api/feedback', async (req, res) => {
+app.post('/api/feedback', createValidator(feedbackSchema), async (req, res) => {
   try {
-    const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
-    const contact = typeof req.body?.contact === 'string' ? req.body.contact.trim() : '';
-    const clientId = typeof req.body?.clientId === 'string' ? req.body.clientId.trim().slice(0, 80) : '';
-
-    if (!message || message.length < 5) {
-      res.status(400).json({ error: 'message-too-short' });
-      return;
-    }
-
-    if (message.length > 600) {
-      res.status(400).json({ error: 'message-too-long' });
-      return;
-    }
-
-    if (contact && contact.length > 200) {
-      res.status(400).json({ error: 'contact-too-long' });
-      return;
-    }
+    const { message, contact, clientId } = req.validated;
 
     const entry = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       message,
-      contact,
-      clientId,
+      contact: contact || '',
+      clientId: clientId || '',
       createdAt: new Date().toISOString(),
-      userAgent: req.get('user-agent') || '',
+      userAgent: (req.get('user-agent') || '').slice(0, 200),
       source: req.get('origin') || req.get('host') || '',
     };
 
@@ -1146,42 +1156,39 @@ app.post('/api/feedback', async (req, res) => {
     }
 
     res.json({ ok: true });
-  } catch {
-    res.status(500).json({ error: 'feedback-save-failed' });
+  } catch (error) {
+    console.error('Feedback error:', error);
+    res.status(500).json({ error: 'failed' });
   }
 });
 
-app.post('/api/user-state', async (req, res) => {
+app.post('/api/user-state', createValidator(userStateSchema), async (req, res) => {
   try {
-    const body = req.body || {};
+    const data = req.validated;
     const entry = {
       createdAt: new Date().toISOString(),
-      clientId: typeof body.clientId === 'string' ? body.clientId.trim().slice(0, 80) : '',
-      quitDate: typeof body.quitDate === 'string' ? body.quitDate.trim().slice(0, 40) : '',
-      cigsPerDay: Number(body.cigsPerDay) || 0,
-      cigsPerPack: Number(body.cigsPerPack) || 0,
-      pricePerPack: Number(body.pricePerPack) || 0,
-      goalName: typeof body.goalName === 'string' ? body.goalName.trim().slice(0, 150) : '',
-      goalAmount: Number(body.goalAmount) || 0,
-      isPaused: Boolean(body.isPaused),
-      pausedDaysTotal: Number(body.pausedDaysTotal) || 0,
-      daysWithoutSmoking: Number(body.daysWithoutSmoking) || 0,
-      savedCigarettes: Number(body.savedCigarettes) || 0,
-      savedMoney: Number(body.savedMoney) || 0,
-      dailyCost: Number(body.dailyCost) || 0,
-      source: req.get('origin') || req.get('host') || '',
-      userAgent: req.get('user-agent') || '',
+      clientId: data.clientId || '',
+      quitDate: data.quitDate || '',
+      cigsPerDay: data.cigsPerDay ?? 0,
+      cigsPerPack: data.cigsPerPack ?? 0,
+      pricePerPack: data.pricePerPack ?? 0,
+      goalName: data.goalName || '',
+      goalAmount: data.goalAmount ?? 0,
+      isPaused: data.isPaused ?? false,
+      pausedDaysTotal: data.pausedDaysTotal ?? 0,
+      daysWithoutSmoking: data.daysWithoutSmoking ?? 0,
+      savedCigarettes: data.savedCigarettes ?? 0,
+      savedMoney: data.savedMoney ?? 0,
+      dailyCost: data.dailyCost ?? 0,
+      source: (req.get('origin') || req.get('host') || '').slice(0, 200),
+      userAgent: (req.get('user-agent') || '').slice(0, 200),
     };
-
-    if (!entry.clientId) {
-      res.status(400).json({ error: 'missing-client-id' });
-      return;
-    }
 
     await appendUserStateCsvRow(entry);
     await appendUserStateXlsxRow(entry);
     res.json({ ok: true });
-  } catch {
+  } catch (error) {
+    console.error('User state error:', error);
     res.status(500).json({ error: 'user-state-save-failed' });
   }
 });
@@ -1214,11 +1221,55 @@ app.get('/api/user-state/export-all', async (req, res) => {
       return;
     }
 
+    const limit = Math.min(Number(req.query.limit) || 100, 1000);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
+
     await ensureUserStatesCsvFile();
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="all-user-states.csv"');
-    res.sendFile(userStatesCsvFile);
-  } catch {
+    const csvContent = await fs.readFile(userStatesCsvFile, 'utf-8');
+    const lines = csvContent.split('\n').filter(Boolean);
+    const [headerLine, ...dataLines] = lines;
+
+    const headers = headerLine.split(',');
+    const clientIdIndex = headers.indexOf('clientId');
+
+    const paginatedLines = dataLines
+      .slice(offset, offset + limit)
+      .map((line) => {
+        const parts = line.split(',');
+        if (clientIdIndex >= 0 && parts[clientIdIndex]) {
+          const hash = createHmac('sha256', 'export-pseudonym-salt')
+            .update(parts[clientIdIndex])
+            .digest('hex')
+            .slice(0, 16);
+          parts[clientIdIndex] = `anon-${hash}`;
+        }
+        return parts.join(',');
+      });
+
+    appendAdminAudit({
+      timestamp: new Date().toISOString(),
+      path: req.path,
+      method: req.method,
+      ip: getClientIp(req),
+      action: 'export-user-states-csv',
+      exported_records: paginatedLines.length,
+      offset,
+      limit,
+      outcome: 'success',
+    });
+
+    res.json({
+      headers,
+      data: paginatedLines,
+      pagination: {
+        offset,
+        limit,
+        total: dataLines.length,
+        hasMore: offset + limit < dataLines.length,
+      },
+    });
+  } catch (error) {
+    console.error('Export error:', error);
     res.status(500).json({ error: 'user-state-export-failed' });
   }
 });
@@ -1230,11 +1281,58 @@ app.get('/api/user-state/export-all.xlsx', async (req, res) => {
       return;
     }
 
-    await ensureUserStatesXlsxFile();
+    const limit = Math.min(Number(req.query.limit) || 100, 1000);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
+
+    await ensureUserStatesCsvFile();
+    const csvContent = await fs.readFile(userStatesCsvFile, 'utf-8');
+    const lines = csvContent.split('\n').filter(Boolean);
+    const [headerLine, ...dataLines] = lines;
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('User States');
+
+    const headers = headerLine.split(',');
+    worksheet.addRow(headers);
+
+    const clientIdIndex = headers.indexOf('clientId');
+    const paginatedData = dataLines
+      .slice(offset, offset + limit)
+      .map((line) => {
+        const parts = line.split(',');
+        if (clientIdIndex >= 0 && parts[clientIdIndex]) {
+          const hash = createHmac('sha256', 'export-pseudonym-salt')
+            .update(parts[clientIdIndex])
+            .digest('hex')
+            .slice(0, 16);
+          parts[clientIdIndex] = `anon-${hash}`;
+        }
+        return parts;
+      });
+
+    paginatedData.forEach((row) => worksheet.addRow(row));
+
+    appendAdminAudit({
+      timestamp: new Date().toISOString(),
+      path: req.path,
+      method: req.method,
+      ip: getClientIp(req),
+      action: 'export-user-states-xlsx',
+      exported_records: paginatedData.length,
+      offset,
+      limit,
+      outcome: 'success',
+    });
+
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename="all-user-states.xlsx"');
-    res.sendFile(userStatesXlsxFile);
-  } catch {
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="user-states-${offset}-${offset + limit}.xlsx"`
+    );
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error('XLSX export error:', error);
     res.status(500).json({ error: 'user-state-export-failed' });
   }
 });
@@ -1266,15 +1364,11 @@ app.use('/api/analytics', analyticsLimiter);
 
 // --- Auth endpoints ---
 
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', createValidator(registerSchema), async (req, res) => {
   try {
-    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase().slice(0, 200) : '';
-    const password = typeof req.body?.password === 'string' ? req.body.password : '';
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      res.status(400).json({ error: 'invalid-email' });
-      return;
-    }
-    if (!password || password.length < 8 || password.length > 200) {
+    const email = req.validated.email.trim().toLowerCase().slice(0, 200);
+    const password = req.validated.password;
+    if (password.length > 200) {
       res.status(400).json({ error: 'invalid-password' });
       return;
     }
@@ -1307,14 +1401,10 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', createValidator(loginSchema), async (req, res) => {
   try {
-    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase().slice(0, 200) : '';
-    const password = typeof req.body?.password === 'string' ? req.body.password : '';
-    if (!email || !password) {
-      res.status(400).json({ error: 'missing-credentials' });
-      return;
-    }
+    const email = req.validated.email.trim().toLowerCase().slice(0, 200);
+    const password = req.validated.password;
     const users = await readUsers();
     const user = users.find(u => u.email === email);
     if (!user || !(await verifyPassword(password, user.passwordHash))) {
@@ -1348,6 +1438,29 @@ app.post('/api/auth/logout', async (req, res) => {
 
 app.get('/api/auth/me', requireUserAuth, (req, res) => {
   res.json({ ok: true, user: { id: req.user.id, email: req.user.email } });
+});
+
+app.delete('/api/auth/account', requireUserAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Remove user record
+    const users = await readUsers();
+    await writeJsonDataFile(usersFile, users.filter(u => u.id !== userId));
+
+    // Remove all sessions for this user
+    const sessions = await readSessions();
+    await writeJsonDataFile(sessionsFile, sessions.filter(s => s.userId !== userId));
+
+    // Remove account state
+    const states = await readAccountStates();
+    delete states[userId];
+    await writeJsonDataFile(accountStatesFile, states);
+
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'delete-account-failed' });
+  }
 });
 
 // --- Account state sync ---
@@ -1425,6 +1538,10 @@ app.put('/api/account/state', requireUserAuth, async (req, res) => {
       updatedAt: typeof body.updatedAt === 'string' ? body.updatedAt.slice(0, 40) : new Date().toISOString(),
     };
     const states = await readAccountStates();
+    // Preserve isPremium flag set by admin — clients cannot set it themselves
+    if (states[req.user.id]?.isPremium === true) {
+      safeState.isPremium = true;
+    }
     states[req.user.id] = safeState;
     await writeJsonDataFile(accountStatesFile, states);
     res.json({ ok: true });
